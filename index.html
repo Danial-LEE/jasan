@@ -84,7 +84,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <span class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">이 기기에 저장</span><button class="g" id="authBtn" hidden style="min-height:36px;padding:5px 12px;font-size:14px">구글 로그인</button></span></div>
   <h1 id="head">…</h1>
   <div class="kpis" id="kpis"></div>
-  <div class="pricebar"><span id="priceTxt">종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.</span><button class="g" id="priceBtn" style="min-height:38px;padding:6px 14px;font-size:14px">시세 갱신</button></div>
+  <div class="pricebar"><span id="priceTxt">종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.</span><span class="row" style="gap:8px"><a id="sheetLink" target="_blank" rel="noopener" hidden style="color:var(--mute);font-size:13px">시세표 열기</a><button class="x" id="debugBtn" style="font-size:13px;min-height:38px">시세 점검</button><button class="g" id="priceBtn" style="min-height:38px;padding:6px 14px;font-size:14px">시세 갱신</button></span></div>
+  <pre id="priceDebug" hidden style="background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-size:13px;max-height:260px;overflow:auto;white-space:pre-wrap;margin:8px 0 0"></pre>
 </div></header>
 <nav id="nav"><a href="#rebalance">리밸런싱</a><a href="#holdings">보유자산</a><a href="#returns">수익 분석</a><a href="#targets">목표 비율·설정</a></nav>
 
@@ -217,10 +218,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=7"></script>
+<script src="defaults.js?v=8"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
-const APP_VERSION = "v7"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
+const APP_VERSION = "v8"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -34,7 +34,7 @@ const ret = h => h.cost ? (h.value - h.cost) / h.cost : 0;
 // 종목코드 정리: 6자리 숫자 → KRX:069500, BTC → CURRENCY:BTCUSD, 나머지는 대문자 그대로(QQQ, NASDAQ:AAPL)
 function normCode(c){ c = String(c || "").trim().toUpperCase().replace(/\s+/g, ""); if (!c) return "";
   let m = /^(\w+):(KRX|KOSPI|KOSDAQ)$/.exec(c); if (m) c = (m[2] === "KOSDAQ" ? "KOSDAQ:" : "KRX:") + m[1]; // 구글 표기 376270:KOSDAQ
-  c = c.replace(/^KOSPI:/, "KRX:");
+  c = c.replace(/^KOSPI:/, "KRX:").replace(/\.(US|O|OQ|N|K)$/, ""); // AAPL.US, AAPL.O 같은 표기는 AAPL로
   if (/^A?\d[0-9A-Z]{5}$/.test(c) && /\d{3}/.test(c)) return "KRX:" + c.replace(/^A(?=\d)/, ""); // 국내 6자리(신규 영문 섞인 코드 포함). 코스닥 여부는 시세 받을 때 자동 확인
   if (CRYPTO.includes(c)) return "CURRENCY:" + c + "USD"; return c; }
 // 시세 함수로 찾아볼 후보: 국내는 코스피(KRX)·코스닥(KOSDAQ) 둘 다, 거래소 없는 해외 티커는 주요 미국 거래소 모두
@@ -64,7 +64,7 @@ function norm(s){
   const b = blank(); s = Object.assign(b, s || {});
   s.targets = Object.assign(toT([]), s.targets); s.band = Object.assign({ type: "abs", v: 5 }, s.band);
   s.holdings = (Array.isArray(s.holdings) ? s.holdings : []).map(h => ({ id: h.id || uid(), inst: String(h.inst || ""), acct: ACCTS.includes(h.acct) ? h.acct : "기타", name: String(h.name || ""), role: RK.includes(h.role) ? h.role : RK[0], cost: +h.cost || 0, value: +h.value || 0,
-    code: normCode(h.code), qty: +h.qty || 0, price: +h.price || 0, cur: String(h.cur || ""), perr: !!h.perr }));
+    code: normCode(h.code), qty: +h.qty || 0, price: +h.price || 0, cur: String(h.cur || ""), perr: !!h.perr, fxerr: !!h.fxerr }));
   s.divs = (Array.isArray(s.divs) ? s.divs : []).filter(d => d && d.d && +d.amt).map(d => ({ id: d.id || uid(), d: String(d.d), hid: String(d.hid || ""), name: String(d.name || ""), amt: +d.amt, how: d.how === "wd" ? "wd" : "dep", cashId: String(d.cashId || "") }));
   s.fx = s.fx && typeof s.fx === "object" ? s.fx : {}; s.priceSheet = String(s.priceSheet || ""); s.pricedAt = +s.pricedAt || 0;
   s.snaps = (Array.isArray(s.snaps) ? s.snaps : []).filter(x => x && x.d).map(x => ({ d: String(x.d), c: +x.c || 0, v: +x.v || 0 }));
@@ -158,7 +158,7 @@ function gtable(entries, T, role){
 function renderHoldings(){
   const f = $("instFilter").value;
   $("hbody").innerHTML = S.holdings.map((h, i) => { const au = isAuto(h);
-    const px = h.code ? (h.perr ? '<div class="px err">시세 없음 · 직접 입력</div>' : h.price && !(h.qty > 0) ? '<div class="px err">수량을 넣어 주세요</div>' : h.price ? `<div class="px">현재가 ${h.price.toLocaleString("ko-KR", { maximumFractionDigits: h.cur === "KRW" ? 0 : 2 })} ${esc(h.cur)}</div>` : '<div class="px">시세 갱신 대기</div>') : "";
+    const px = h.code ? (h.perr ? '<div class="px err">시세 없음 · 직접 입력</div>' : h.fxerr ? `<div class="px err">${esc(h.cur)} 환율을 받지 못함</div>` : h.price && !(h.qty > 0) ? '<div class="px err">수량을 넣어 주세요</div>' : h.price ? `<div class="px">현재가 ${h.price.toLocaleString("ko-KR", { maximumFractionDigits: h.cur === "KRW" ? 0 : 2 })} ${esc(h.cur)}</div>` : '<div class="px">시세 갱신 대기</div>') : "";
     return `<tr data-i="${i}" ${f && h.inst !== f ? "hidden" : ""}><td><input data-k="inst" list="insts" value="${esc(h.inst)}" aria-label="증권사"></td><td><select data-k="acct" aria-label="계좌">${ACCTS.map(a => `<option${a === h.acct ? " selected" : ""}>${esc(a)}</option>`).join("")}</select></td><td><input data-k="name" value="${esc(h.name)}" aria-label="상품명"></td><td><input data-k="code" value="${esc(h.code)}" placeholder="없음" aria-label="종목코드" autocapitalize="characters"></td><td><select data-k="role" aria-label="역할">${ROLES.map(x => `<option value="${x.k}"${x.k === h.role ? " selected" : ""}>${esc(x.n)}</option>`).join("")}</select></td><td><input class="n" data-k="qty" type="number" min="0" step="any" value="${h.qty || ""}" aria-label="수량"></td><td><input class="n" data-k="cost" type="number" min="0" step="10000" value="${h.cost}" aria-label="투자원금"></td><td><input class="n" data-k="value" type="number" min="0" step="10000" value="${Math.round(h.value)}" aria-label="평가금액" ${au ? 'readonly title="수량 × 현재가로 자동 계산"' : ""}>${px}</td><td class="n ${cls(ret(h))}" id="r-${h.id}">${pct(ret(h))}</td><td><button class="x" data-del="${i}" aria-label="삭제">✕</button></td></tr>`; }).join("")
     || '<tr><td colspan="10" class="note">아직 자산이 없습니다. ‘Numbers·엑셀 불러오기’ 또는 ‘+ 자산 추가’로 시작하세요.</td></tr>';
   renderHFoot();
@@ -472,6 +472,7 @@ function priceStatus(){
   if (!n) return setPriceTxt("종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.");
   const at = S.pricedAt ? new Date(S.pricedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const bad = S.holdings.filter(h => h.code && h.perr).length;
+  $("sheetLink").hidden = !S.priceSheet; if (S.priceSheet) $("sheetLink").href = "https://docs.google.com/spreadsheets/d/" + S.priceSheet;
   setPriceTxt(at ? `시세 ${at} 기준 · 종목코드 ${n}개${bad ? ` 중 ${bad}개 시세 없음` : ""} · 최대 20분 지연 · 로그인 중 ${REFRESH_MIN}분마다 자동 갱신` : `종목코드가 있는 자산 ${n}개 · 구글 로그인하면 시세를 받아 옵니다`);
 }
 async function ensureSheet(){
@@ -486,36 +487,43 @@ async function refreshPrices(manual){
   pricing = true; setPriceTxt("시세를 받아 오는 중…"); $("priceBtn").disabled = true;
   try {
     const id = await ensureSheet(), rows = [...new Set(codes.flatMap(candidates)), ...FXS.map(c => "CURRENCY:" + c + "KRW")];
-    const vals = rows.map((c, i) => [c, `=IFERROR(GOOGLEFINANCE(A${i + 1},"price"),"ERR")`, `=IFERROR(GOOGLEFINANCE(A${i + 1},"currency"),"")`]);
+    // 시세는 오류를 감추지 않고 그대로 받아 와서, 아직 계산 중인지 끝났는지 구분합니다
+    const vals = rows.map((c, i) => [c, `=GOOGLEFINANCE(A${i + 1},"price")`, `=IFERROR(GOOGLEFINANCE(A${i + 1},"currency"),"")`]);
     await gfetch(`${SHEETS}/${id}/values/P!A1:C1000:clear`, { method: "POST" });
     await gfetch(`${SHEETS}/${id}/values/P!A1:C${rows.length}?valueInputOption=USER_ENTERED`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ values: vals }) });
-    let got = [];
-    for (let k = 0; k < 8; k++) { // 시트가 계산을 마칠 때까지 잠깐씩 기다림
-      await new Promise(r => setTimeout(r, k ? 1500 : 800));
+    const parse = got => { const P = {}; got.forEach(r => { const p = typeof r[1] === "number" ? r[1] : NaN; P[r[0]] = { p, cur: String(r[2] || "").toUpperCase(), raw: r[1] }; }); return P; };
+    const curOf = (code, x) => x.cur || (code.startsWith("CURRENCY:") ? code.slice(-3) : /^(KRX|KOSDAQ):/.test(code) ? "KRW" : "USD");
+    const fxReady = (P, cur) => cur === "KRW" || (cur === "GBX" ? P["CURRENCY:GBPKRW"] && P["CURRENCY:GBPKRW"].p > 0 : P["CURRENCY:" + cur + "KRW"] && P["CURRENCY:" + cur + "KRW"].p > 0);
+    const allDone = P => codes.every(c => { const hit = candidates(c).find(x => P[x] && P[x].p > 0); return hit && fxReady(P, curOf(hit, P[hit])); });
+    let got = [], P = {};
+    for (let k = 0; k < 14; k++) { // 시트가 계산을 마칠 때까지 기다림(해외 종목·환율은 몇 초 더 걸릴 수 있음, 최대 약 20초)
+      await new Promise(r => setTimeout(r, k ? 1500 : 1000));
       got = ((await (await gfetch(`${SHEETS}/${id}/values/P!A1:C${rows.length}?valueRenderOption=UNFORMATTED_VALUE`)).json()).values) || [];
-      if (got.length >= rows.length && !got.some(r => /loading/i.test(String(r[1])))) break;
+      P = parse(got); if (got.length >= rows.length && allDone(P)) break;
+      setPriceTxt(`시세를 받아 오는 중… (${k + 1})`);
     }
-    const P = {}; got.forEach(r => { const p = typeof r[1] === "number" ? r[1] : NaN; P[r[0]] = { p, cur: String(r[2] || "").toUpperCase() }; });
     FXS.forEach(c => { const x = P["CURRENCY:" + c + "KRW"]; if (x && x.p > 0) S.fx[c] = x.p; });
-    let ok = 0, bad = 0;
+    let ok = 0, bad = 0, fxbad = 0;
     S.holdings.forEach(h => { if (!h.code) return; const hit = candidates(h.code).find(c => P[c] && P[c].p > 0), x = hit && P[hit];
-      if (!x) { h.perr = true; bad++; return; }
+      if (!x) { h.perr = true; h.fxerr = false; bad++; return; }
       if (hit !== h.code) h.code = hit; // 찾은 거래소로 종목코드를 고쳐 둠(다음부터 바로 조회)
-      let cur = x.cur; if (!cur) cur = h.code.startsWith("CURRENCY:") ? h.code.slice(-3) : /^(KRX|KOSDAQ):/.test(h.code) ? "KRW" : "USD";
-      h.price = x.p; h.cur = cur; h.perr = false; const fx = fxOf(cur);
+      const cur = curOf(h.code, x); h.price = x.p; h.cur = cur; h.perr = false; const fx = fxOf(cur);
+      h.fxerr = !(fx > 0); if (h.fxerr) fxbad++;
       if (h.qty > 0 && fx > 0) { h.value = Math.round(h.qty * x.p * fx); ok++; } });
+    S.priceDebug = got.slice(0, 60).map(r => r[0] + " → " + (typeof r[1] === "number" ? r[1] : String(r[1] || "(빈칸)")) + (r[2] ? " " + r[2] : ""));
     S.pricedAt = Date.now();
     if (SET.AUTO_SNAPSHOT !== false && ok) { const c = calc(), d = today(); S.snaps = S.snaps.filter(x => x.d !== d); S.snaps.push({ d, v: c.T.v, c: c.T.c }); }
     if (S.sample) S.sample = false;
     persist(); renderHoldings(); renderLive();
     const noQty = S.holdings.filter(h => h.code && h.price > 0 && !(h.qty > 0)).length;
-    if (manual) toast(`시세를 반영했습니다: ${ok}개 갱신${bad ? `, ${bad}개는 시세를 찾지 못함` : ""}${noQty ? `, ${noQty}개는 수량이 비어 있음` : ""}`);
+    if (manual) toast(`시세를 반영했습니다: ${ok}개 갱신${bad ? `, ${bad}개는 시세를 찾지 못함` : ""}${fxbad ? `, ${fxbad}개는 환율을 받지 못함` : ""}${noQty ? `, ${noQty}개는 수량이 비어 있음` : ""}`);
   } catch (e) {
     const msg = e && e.auth ? "다시 로그인해 주세요" : e && e.status === 403 ? "구글 콘솔에서 Google Sheets API를 켜 주세요(설치안내 5-2)" : "시세를 받아 오지 못했습니다";
     if (manual || !(e && e.auth)) toast(msg);
   } finally { pricing = false; $("priceBtn").disabled = false; priceStatus(); }
 }
 $("priceBtn").onclick = () => refreshPrices(true);
+$("debugBtn").onclick = () => { const d = $("priceDebug"); d.hidden = !d.hidden; d.textContent = (S.priceDebug && S.priceDebug.length) ? "구글 시트가 돌려준 값 (종목코드 → 현재가 통화)\n" + S.priceDebug.join("\n") : "아직 받아 온 기록이 없습니다. ‘시세 갱신’을 먼저 누르세요."; };
 
 /* ---------- 탭 ---------- */
 const VIEWS = ["rebalance", "holdings", "returns", "targets"];
