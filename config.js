@@ -3,5 +3,5 @@
    (설치안내.md 4~5단계) 따옴표와 쉼표는 지우지 마세요.
    비워 두면 드라이브 저장 없이 이 기기(브라우저)에만 저장됩니다. */
 window.JASAN_CONFIG = {
-  GOOGLE_CLIENT_ID: ""
+  GOOGLE_CLIENT_ID: "772886473648-fdjonqo3e11uveijf86vju1f2ecd3rja.apps.googleusercontent.com"
 };
