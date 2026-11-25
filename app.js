@@ -13,6 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
+const APP_VERSION = "v7"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -521,6 +522,7 @@ const VIEWS = ["rebalance", "holdings", "returns", "targets"];
 function route(){ const h = location.hash.slice(1), v = VIEWS.includes(h) ? h : "rebalance"; VIEWS.forEach(x => $("v-" + x).classList.toggle("on", x === v)); document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + v)); if (v === "returns") requestAnimationFrame(lineDraw); }
 addEventListener("hashchange", route);
 
+$("appVer").textContent = "앱 " + APP_VERSION;
 route(); renderAll(); initGoogle();
 if ((window.__cfgErr || []).length) toast([...new Set(window.__cfgErr)].join(", ") + "에 오타가 있어 그 파일의 설정을 쓰지 못했습니다. 따옴표·쉼표를 확인하세요");
 else if (!window.JASAN_DEFAULTS) toast("defaults.js를 읽지 못해 최소 기본값으로 실행 중입니다. 깃허브에 defaults.js가 올라갔는지 확인하세요");

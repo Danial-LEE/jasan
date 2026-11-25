@@ -80,7 +80,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <body>
 <div class="banner" id="sampleBar" hidden><span>지금 보이는 숫자는 예시 데이터입니다.</span><span class="row"><button class="a" id="sampleImport" style="min-height:38px">내 Numbers 파일로 시작</button><button class="g" id="startMine" style="min-height:38px;color:var(--bg);border-color:var(--bg)">빈 상태로 시작</button></span></div>
 <header class="band"><div class="wrap">
-  <div class="kick"><span>역할 중심 자산배분 · 『1억부터는 포트폴리오다』(신환종) 방식 참고</span>
+  <div class="kick"><span>역할 중심 자산배분 · 『1억부터는 포트폴리오다』(신환종) 방식 참고 · <b id="appVer">앱 v?</b></span>
     <span class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">이 기기에 저장</span><button class="g" id="authBtn" hidden style="min-height:36px;padding:5px 12px;font-size:14px">구글 로그인</button></span></div>
   <h1 id="head">…</h1>
   <div class="kpis" id="kpis"></div>
@@ -217,10 +217,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js"></script>
+<script src="defaults.js?v=7"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
