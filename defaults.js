@@ -69,6 +69,8 @@ window.JASAN_DEFAULTS = {
   PRICE_REFRESH_MINUTES: 10,
   AUTO_SNAPSHOT: true,
   CRYPTO: ["BTC", "ETH", "XRP", "SOL", "DOGE", "ADA"],
+  /* 거래소 없이 티커만 적은 해외 종목(예: AAPL)을 찾아볼 미국 거래소 순서 */
+  US_EXCHANGES: ["NASDAQ", "NYSE", "NYSEARCA", "NYSEAMERICAN", "BATS"],
 
   /* 9) 파일 불러오기: 상품명·분류에 이 단어가 들어 있으면 그 역할로 자동 분류합니다.
         위에서부터 먼저 맞는 것을 씁니다. 내 종목에 맞게 단어를 더하세요. */

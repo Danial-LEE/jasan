@@ -32,8 +32,17 @@ const toT = a => Object.fromEntries(RK.map((k, i) => [k, +(a && a[i]) || 0]));
 const ret = h => h.cost ? (h.value - h.cost) / h.cost : 0;
 // 종목코드 정리: 6자리 숫자 → KRX:069500, BTC → CURRENCY:BTCUSD, 나머지는 대문자 그대로(QQQ, NASDAQ:AAPL)
 function normCode(c){ c = String(c || "").trim().toUpperCase().replace(/\s+/g, ""); if (!c) return "";
-  if (/^\d{6}$/.test(c)) return "KRX:" + c; if (/^A\d{6}$/.test(c)) return "KRX:" + c.slice(1);
+  let m = /^(\w+):(KRX|KOSPI|KOSDAQ)$/.exec(c); if (m) c = (m[2] === "KOSDAQ" ? "KOSDAQ:" : "KRX:") + m[1]; // 구글 표기 376270:KOSDAQ
+  c = c.replace(/^KOSPI:/, "KRX:");
+  if (/^A?\d[0-9A-Z]{5}$/.test(c) && /\d{3}/.test(c)) return "KRX:" + c.replace(/^A(?=\d)/, ""); // 국내 6자리(신규 영문 섞인 코드 포함). 코스닥 여부는 시세 받을 때 자동 확인
   if (CRYPTO.includes(c)) return "CURRENCY:" + c + "USD"; return c; }
+// 시세 함수로 찾아볼 후보: 국내는 코스피(KRX)·코스닥(KOSDAQ) 둘 다, 거래소 없는 해외 티커는 주요 미국 거래소 모두
+const US_EX = SET.US_EXCHANGES || ["NASDAQ", "NYSE", "NYSEARCA", "NYSEAMERICAN", "BATS"];
+function candidates(code){
+  const m = /^(KRX|KOSDAQ):(.+)$/.exec(code); if (m) return [code, (m[1] === "KRX" ? "KOSDAQ:" : "KRX:") + m[2]];
+  if (code.includes(":")) return [code];
+  return [code, ...US_EX.map(x => x + ":" + code)];
+}
 const isAuto = h => !!(h.code && h.qty > 0 && h.price > 0);
 let toastT = 0;
 function toast(m){ const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3500); }
@@ -148,7 +157,7 @@ function gtable(entries, T, role){
 function renderHoldings(){
   const f = $("instFilter").value;
   $("hbody").innerHTML = S.holdings.map((h, i) => { const au = isAuto(h);
-    const px = h.code ? (h.perr ? '<div class="px err">시세 없음 · 직접 입력</div>' : h.price ? `<div class="px">현재가 ${h.price.toLocaleString("ko-KR", { maximumFractionDigits: h.cur === "KRW" ? 0 : 2 })} ${esc(h.cur)}</div>` : '<div class="px">시세 갱신 대기</div>') : "";
+    const px = h.code ? (h.perr ? '<div class="px err">시세 없음 · 직접 입력</div>' : h.price && !(h.qty > 0) ? '<div class="px err">수량을 넣어 주세요</div>' : h.price ? `<div class="px">현재가 ${h.price.toLocaleString("ko-KR", { maximumFractionDigits: h.cur === "KRW" ? 0 : 2 })} ${esc(h.cur)}</div>` : '<div class="px">시세 갱신 대기</div>') : "";
     return `<tr data-i="${i}" ${f && h.inst !== f ? "hidden" : ""}><td><input data-k="inst" list="insts" value="${esc(h.inst)}" aria-label="증권사"></td><td><select data-k="acct" aria-label="계좌">${ACCTS.map(a => `<option${a === h.acct ? " selected" : ""}>${esc(a)}</option>`).join("")}</select></td><td><input data-k="name" value="${esc(h.name)}" aria-label="상품명"></td><td><input data-k="code" value="${esc(h.code)}" placeholder="없음" aria-label="종목코드" autocapitalize="characters"></td><td><select data-k="role" aria-label="역할">${ROLES.map(x => `<option value="${x.k}"${x.k === h.role ? " selected" : ""}>${esc(x.n)}</option>`).join("")}</select></td><td><input class="n" data-k="qty" type="number" min="0" step="any" value="${h.qty || ""}" aria-label="수량"></td><td><input class="n" data-k="cost" type="number" min="0" step="10000" value="${h.cost}" aria-label="투자원금"></td><td><input class="n" data-k="value" type="number" min="0" step="10000" value="${Math.round(h.value)}" aria-label="평가금액" ${au ? 'readonly title="수량 × 현재가로 자동 계산"' : ""}>${px}</td><td class="n ${cls(ret(h))}" id="r-${h.id}">${pct(ret(h))}</td><td><button class="x" data-del="${i}" aria-label="삭제">✕</button></td></tr>`; }).join("")
     || '<tr><td colspan="10" class="note">아직 자산이 없습니다. ‘Numbers·엑셀 불러오기’ 또는 ‘+ 자산 추가’로 시작하세요.</td></tr>';
   renderHFoot();
@@ -475,7 +484,7 @@ async function refreshPrices(manual){
   if (!token) { if (manual) login(); else priceStatus(); return; }
   pricing = true; setPriceTxt("시세를 받아 오는 중…"); $("priceBtn").disabled = true;
   try {
-    const id = await ensureSheet(), rows = [...codes, ...FXS.map(c => "CURRENCY:" + c + "KRW")];
+    const id = await ensureSheet(), rows = [...new Set(codes.flatMap(candidates)), ...FXS.map(c => "CURRENCY:" + c + "KRW")];
     const vals = rows.map((c, i) => [c, `=IFERROR(GOOGLEFINANCE(A${i + 1},"price"),"ERR")`, `=IFERROR(GOOGLEFINANCE(A${i + 1},"currency"),"")`]);
     await gfetch(`${SHEETS}/${id}/values/P!A1:C1000:clear`, { method: "POST" });
     await gfetch(`${SHEETS}/${id}/values/P!A1:C${rows.length}?valueInputOption=USER_ENTERED`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ values: vals }) });
@@ -488,8 +497,9 @@ async function refreshPrices(manual){
     const P = {}; got.forEach(r => { const p = typeof r[1] === "number" ? r[1] : NaN; P[r[0]] = { p, cur: String(r[2] || "").toUpperCase() }; });
     FXS.forEach(c => { const x = P["CURRENCY:" + c + "KRW"]; if (x && x.p > 0) S.fx[c] = x.p; });
     let ok = 0, bad = 0;
-    S.holdings.forEach(h => { if (!h.code) return; const x = P[h.code];
-      if (!x || !(x.p > 0)) { h.perr = true; bad++; return; }
+    S.holdings.forEach(h => { if (!h.code) return; const hit = candidates(h.code).find(c => P[c] && P[c].p > 0), x = hit && P[hit];
+      if (!x) { h.perr = true; bad++; return; }
+      if (hit !== h.code) h.code = hit; // 찾은 거래소로 종목코드를 고쳐 둠(다음부터 바로 조회)
       let cur = x.cur; if (!cur) cur = h.code.startsWith("CURRENCY:") ? h.code.slice(-3) : /^(KRX|KOSDAQ):/.test(h.code) ? "KRW" : "USD";
       h.price = x.p; h.cur = cur; h.perr = false; const fx = fxOf(cur);
       if (h.qty > 0 && fx > 0) { h.value = Math.round(h.qty * x.p * fx); ok++; } });
@@ -497,7 +507,8 @@ async function refreshPrices(manual){
     if (SET.AUTO_SNAPSHOT !== false && ok) { const c = calc(), d = today(); S.snaps = S.snaps.filter(x => x.d !== d); S.snaps.push({ d, v: c.T.v, c: c.T.c }); }
     if (S.sample) S.sample = false;
     persist(); renderHoldings(); renderLive();
-    if (manual) toast(`시세를 반영했습니다: ${ok}개 갱신${bad ? `, ${bad}개는 시세를 찾지 못함` : ""}`);
+    const noQty = S.holdings.filter(h => h.code && h.price > 0 && !(h.qty > 0)).length;
+    if (manual) toast(`시세를 반영했습니다: ${ok}개 갱신${bad ? `, ${bad}개는 시세를 찾지 못함` : ""}${noQty ? `, ${noQty}개는 수량이 비어 있음` : ""}`);
   } catch (e) {
     const msg = e && e.auth ? "다시 로그인해 주세요" : e && e.status === 403 ? "구글 콘솔에서 Google Sheets API를 켜 주세요(설치안내 5-2)" : "시세를 받아 오지 못했습니다";
     if (manual || !(e && e.auth)) toast(msg);
