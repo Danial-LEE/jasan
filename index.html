@@ -3,196 +3,299 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b0b0c">
+<meta name="theme-color" content="#0f1b33">
 <title>자산관리 계기판</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* 디자인: 정밀 계측기. 알루미늄 #e9eaec · 검정 · 주황 바늘 #ff4f00 / 밤 #141517.
-   상승·매수 빨강, 하락·매도 파랑(한국 증시 관례). 글꼴 Geist + Noto Sans KR. */
-:root{color-scheme:light dark;--bg:light-dark(#e9eaec,#141517);--panel:light-dark(#f8f8f9,#1c1e21);--ink:light-dark(#0b0b0c,#ececee);--mute:light-dark(#5a5e66,#9ca1aa);--line:light-dark(#cdd0d5,#30333a);--acc:#ff4f00;--up:light-dark(#d01f2b,#ff6670);--down:light-dark(#1d5bd6,#74a4ff);--band:light-dark(#d9dbdf,#2a2d33)}
-*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}body.empty #v-rebalance{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Geist,'Noto Sans KR',system-ui,sans-serif;overflow-x:clip;font-variant-numeric:tabular-nums}
-.band{padding:clamp(22px,3.5vw,48px) max(5vw,16px)}.wrap{max-width:1240px;margin:0 auto}
-h1{font-size:clamp(26px,4.2vw,44px);line-height:1.1;margin:6px 0 18px;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
-h2{font-size:22px;margin:0 0 12px;line-height:1.25}h3{font-size:16px;margin:0 0 8px}
-.kick{color:var(--mute);font-size:14px;display:flex;gap:10px 16px;flex-wrap:wrap;justify-content:space-between;align-items:center}
-.sync{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--mute)}.dot.ok{background:#1aa36b}.dot.warn{background:var(--acc)}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
-.kpi{background:var(--panel);padding:14px 16px}.kpi b{display:block;font-size:clamp(20px,2.6vw,28px);font-weight:700;white-space:nowrap}.kpi span{font-size:13px;color:var(--mute)}
-nav{position:sticky;top:0;z-index:5;background:var(--ink);display:flex;gap:2px;padding:0 max(5vw,16px);overflow-x:auto}
-nav a{flex:none;color:var(--bg);text-decoration:none;padding:13px 16px;font-weight:500;font-size:15px;border-bottom:3px solid transparent}
-nav a.on{border-color:var(--acc)}nav a:focus-visible{outline:2px solid var(--acc)}
+/* 디자인: 왼쪽 남색 사이드바 + 밝은 회색 바탕의 흰 카드. 포인트 색은 초록(선택·정상), 이탈은 산호색.
+   손익 숫자는 한국 증시 관례대로 상승 빨강·하락 파랑. 글꼴 Pretendard. */
+:root{color-scheme:light dark;
+  --bg:light-dark(#f4f5f7,#0b1120);--panel:light-dark(#ffffff,#121a2b);--ink:light-dark(#111827,#e8ebf1);--mute:light-dark(#6b7280,#94a0b4);--faint:light-dark(#9ca3af,#64708a);
+  --line:light-dark(#e7e9ee,#222c40);--soft:light-dark(#f7f8fa,#172036);
+  --side:#0f1b33;--side2:#18264a;--sideInk:#c9d2e3;--sideMute:#7f8bab;
+  --acc:#2f9e6e;--accSoft:light-dark(#e6f4ec,#14352a);--warn:#ef6a4c;--warnSoft:light-dark(#fdece7,#3a1f1a);
+  --up:light-dark(#e0484b,#ff6b6e);--down:light-dark(#2f6fe4,#6d9dff);--upSoft:light-dark(#fbe3e3,#3b1e22);--downSoft:light-dark(#e2ebfc,#1b2747);
+  --band:light-dark(#e3f1e9,#173326);--r:12px}
+*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
+html{scroll-padding-top:70px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Pretendard Variable",Pretendard,"Noto Sans KR",system-ui,sans-serif;font-variant-numeric:tabular-nums;overflow-x:clip;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}h2{font-size:16px}h3{font-size:14px}
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh;background:linear-gradient(90deg,var(--side) 248px,transparent 248px)}
+/* 사이드바 */
+.side{background:var(--side);color:var(--sideInk);display:flex;flex-direction:column;gap:6px;padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:16px;padding:2px 8px 14px}
+.brand svg{flex:none}
+.sec{font-size:11px;font-weight:600;color:var(--sideMute);letter-spacing:.06em;padding:14px 10px 6px}
+.ilist{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ilist button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--sideInk)}
+.ilist button:hover{background:var(--side2)}.ilist button.on{background:#1d3a35;color:#fff}
+.ilist i{width:7px;height:7px;border-radius:50%;background:var(--sideMute);flex:none}.ilist button.on i{background:#3ccf8e}
+.ilist span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ilist em{font-style:normal;font-size:12px;color:var(--sideMute)}
+.hr{height:1px;background:#22325a;margin:12px 8px}
+#nav{display:grid;gap:2px}
+#nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;color:var(--sideInk);text-decoration:none;font-size:15px;font-weight:500}
+#nav a svg{width:18px;height:18px;flex:none;opacity:.85}
+#nav a:hover{background:var(--side2)}#nav a.on{background:var(--side2);color:#fff}
+#nav a:focus-visible,.ilist button:focus-visible{outline:2px solid #3ccf8e;outline-offset:1px}
+.sfoot{margin-top:auto;border-top:1px solid #22325a;padding:14px 8px 0;display:grid;gap:8px;font-size:13px}
+.sync{display:flex;align-items:center;gap:8px;color:var(--sideInk)}.dot{width:8px;height:8px;border-radius:50%;background:var(--sideMute);flex:none}.dot.ok{background:#3ccf8e}.dot.warn{background:var(--warn);border:0;padding:0;margin:0;border-radius:50%}
+#authBtn{background:#24365f;border-color:#24365f;color:#fff;min-height:36px;font-size:13px}
+.ver{color:var(--sideMute);font-size:12px}
+/* 본문 */
+.main{min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px clamp(16px,3vw,32px);background:var(--panel);border-bottom:1px solid var(--line)}
+.ttl{display:flex;align-items:center;gap:10px}.ttl h1{font-size:20px}
+.badge{font-size:12px;font-weight:600;color:var(--acc);background:var(--accSoft);padding:3px 8px;border-radius:6px}
+.topr{display:flex;align-items:center;gap:10px;font-size:13px}
+.chip{border:1px solid var(--line);border-radius:8px;padding:6px 12px;color:var(--ink);background:var(--panel);white-space:nowrap}
+.live{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--faint)}.live i{width:8px;height:8px;border-radius:50%;background:var(--faint)}.live.on{color:var(--acc)}.live.on i{background:var(--acc)}
+#tabs{display:none;gap:4px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:0;z-index:5}
+#tabs a{flex:none;padding:12px 12px;color:var(--mute);text-decoration:none;font-weight:500;border-bottom:2px solid transparent}#tabs a.on{color:var(--ink);border-color:var(--acc)}
+.content{padding:22px clamp(16px,3vw,32px) 48px;max-width:1320px}
+.banner{background:var(--side);color:#fff;padding:10px clamp(16px,3vw,32px);font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+/* 카드·KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.kpi>span:first-child{display:block;font-size:12px;font-weight:600;color:var(--faint);letter-spacing:.02em}
+.kpi b{display:block;font-size:clamp(20px,2.2vw,26px);font-weight:700;margin:6px 0 2px;white-space:nowrap;letter-spacing:-.01em}
+.kpi>span:last-child{font-size:12px;color:var(--mute)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.panel>h2,.ph{margin-bottom:12px}.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.ph h2{margin:0}.ph .note{margin:0}
+.insight{display:flex;align-items:center;gap:12px;background:light-dark(#5f6b82,#26324d);color:#fff;border-radius:var(--r);padding:12px 16px;margin:14px 0}
+.insight .spark{width:28px;height:28px;border-radius:8px;background:#7fd6ae;display:grid;place-items:center;flex:none}
+.insight b{font-weight:700;white-space:nowrap;line-height:28px}.insight #head{flex:1;font-size:14.5px;line-height:1.5;padding-top:3px}.insight{align-items:flex-start!important}
+.pricebar{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:0 0 18px;font-size:13px;color:var(--mute)}
+#priceDebug{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;max-height:260px;overflow:auto;white-space:pre-wrap;margin:-8px 0 18px}
 .view{display:none}.view.on{display:block}
-.panel{background:var(--panel);border:1px solid var(--line);padding:clamp(14px,2vw,24px);margin-bottom:18px}
-.ctl{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:end;margin-bottom:18px}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
-input,select,textarea,button{font:inherit;font-size:16px;color:var(--ink)}
-input,select,textarea{background:var(--bg);border:1px solid var(--line);padding:9px 10px;min-height:44px;border-radius:0}
+/* 입력 요소 */
+.ctl{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin-bottom:16px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:var(--mute)}
+input,select,textarea,button{font:inherit;font-size:15px;color:var(--ink)}
+input,select,textarea{background:var(--panel);border:1px solid var(--line);padding:8px 10px;min-height:40px;border-radius:8px}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-button{min-height:44px;padding:9px 16px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;font-weight:500}
-button.g{background:transparent;color:var(--ink)}button.x{border:0;background:transparent;color:var(--mute);padding:6px 10px;min-height:36px}
+button{min-height:40px;padding:8px 14px;border:1px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer;font-weight:600;border-radius:8px}
+button.g{background:var(--panel);color:var(--ink);border-color:var(--line)}button.g:hover{border-color:var(--faint)}
+button.x{border:0;background:transparent;color:var(--mute);padding:6px 8px;min-height:32px;font-weight:500}button.x:hover{color:var(--ink)}
 button.a{background:var(--acc);border-color:var(--acc);color:#fff}
-.seg{display:inline-flex;border:1px solid var(--ink);flex-wrap:wrap}.seg button{border:0;background:transparent;color:var(--ink)}.seg button.on{background:var(--ink);color:var(--bg)}
-.scale,.gr{display:grid;grid-template-columns:minmax(0,10.5em) minmax(0,1fr) minmax(0,12em);gap:14px;align-items:center}
-.scale{font-size:12px;color:var(--mute);margin-bottom:4px}.ticks{position:relative;height:16px}.ticks i{position:absolute;transform:translateX(-50%);font-style:normal}
-.gr{padding:9px 0;border-top:1px solid var(--line)}.gr .nm{font-weight:500;line-height:1.25}.gr .nm small{display:block;color:var(--mute);font-weight:400;font-size:13px}
-.trk{position:relative;height:34px;background:linear-gradient(var(--line),var(--line)) 0 50%/100% 1px no-repeat}
-.trk .bd{position:absolute;top:7px;bottom:7px;background:var(--band)}
-.trk .tg{position:absolute;top:2px;bottom:2px;width:2px;background:var(--ink);transform:translateX(-1px)}
-.trk .dr{position:absolute;top:16px;height:2px;background:var(--acc);opacity:.55}
-.trk .pt{position:absolute;top:8px;width:18px;height:18px;transform:translateX(-9px) rotate(45deg);background:var(--panel);border:2px solid var(--ink)}
-.trk .pt.out{background:var(--acc);border-color:var(--acc)}
-.ro{text-align:right;line-height:1.3}.ro b{font-size:17px}.ro small{display:block;color:var(--mute);font-size:13px;white-space:nowrap}
+button:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:3px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--mute);min-height:34px;padding:5px 12px;border-radius:7px;font-weight:600}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+/* 리밸런싱 게이지 */
+.scale,.gr{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr) minmax(0,11.5em);gap:16px;align-items:center}
+.scale{font-size:11px;color:var(--faint);margin-bottom:4px}.ticks{position:relative;height:16px}.ticks i{position:absolute;transform:translateX(-50%);font-style:normal}
+.gr{padding:10px 0;border-top:1px solid var(--line)}.gr .nm{font-weight:600;line-height:1.3}.gr .nm small{display:block;color:var(--faint);font-weight:400;font-size:12px}
+.trk{position:relative;height:30px;background:linear-gradient(var(--line),var(--line)) 0 50%/100% 2px no-repeat}
+.trk .bd{position:absolute;top:7px;bottom:7px;background:var(--band);border-radius:4px}
+.trk .tg{position:absolute;top:3px;bottom:3px;width:2px;background:var(--ink);transform:translateX(-1px);border-radius:1px}
+.trk .dr{position:absolute;top:14px;height:2px;background:var(--warn);opacity:.6}
+.trk .pt{position:absolute;top:8px;width:14px;height:14px;transform:translateX(-7px) rotate(45deg);background:var(--panel);border:2px solid var(--ink);border-radius:2px}
+.trk .pt.out{background:var(--warn);border-color:var(--warn)}
+.ro{text-align:right;line-height:1.3}.ro b{font-size:16px}.ro small{display:block;color:var(--mute);font-size:12px;white-space:nowrap}
 .buy,.up{color:var(--up)}.sell,.dn{color:var(--down)}
-.tag{display:inline-block;font-size:12px;padding:1px 7px;border:1px solid currentColor;white-space:nowrap}.tag.o{color:var(--acc)}
-table{width:100%;border-collapse:collapse;font-size:15px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-th{font-size:13px;color:var(--mute);font-weight:500}td.n,th.n{text-align:right;white-space:nowrap}
-.scroll{overflow-x:auto}.ht{min-width:1180px}.ht input[readonly]{background:transparent;border-color:transparent;color:var(--ink);font-weight:500}.ht .px{font-size:12px;color:var(--mute);white-space:nowrap;text-align:right}.ht .px.err{color:var(--acc)}
-.pricebar{display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:12px;font-size:14px;color:var(--mute)}
-.mbars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:end;height:120px;margin:8px 0 4px}.mbars div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mute)}.mbars i{display:block;width:100%;background:var(--ink);min-height:1px}.mbars div.on i{background:var(--acc)}
-.divform{display:grid;grid-template-columns:9.5em minmax(0,1.6fr) 9em minmax(0,1.3fr) auto;gap:10px;align-items:end}.divform input,.divform select{width:100%}
-@media(max-width:860px){.divform{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}.ht input,.ht select{width:100%;min-height:40px;padding:7px 8px}.ht input.n{text-align:right}
-.bar{height:8px;background:var(--band);position:relative;min-width:60px}.bar i{position:absolute;inset:0 auto 0 0}
-.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.fig{position:relative;min-height:300px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
-.leg{display:grid;gap:6px;font-size:14px}.leg div{display:flex;gap:8px;align-items:center}.sw{width:12px;height:12px;flex:none;display:inline-block}
-.note{font-size:13px;color:var(--mute)}.warn{border-left:3px solid var(--acc);padding:8px 12px;background:var(--bg);margin:8px 0;font-size:15px}
-.tgt{display:grid;grid-template-columns:minmax(0,1fr) 7em;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.tgt input{text-align:right;width:100%}
-.sum{font-size:28px;font-weight:700}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:5px;white-space:nowrap;vertical-align:1px}.tag.o{color:var(--warn);background:var(--warnSoft)}
+/* 표 */
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--faint);font-weight:600}td.n,th.n{text-align:right;white-space:nowrap}tbody tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}.ht{min-width:1180px}.ht input,.ht select{width:100%;min-height:36px;padding:6px 8px;font-size:14px;border-color:transparent;background:var(--soft)}
+.ht input:hover,.ht select:hover{border-color:var(--line)}.ht input.n{text-align:right}
+.ht input[readonly]{background:transparent;border-color:transparent;color:var(--ink);font-weight:600}
+.ht .px{font-size:11.5px;color:var(--faint);white-space:nowrap;text-align:right}.ht .px.err{color:var(--warn)}
+.ht tfoot th{border-top:1px solid var(--line);border-bottom:0;color:var(--ink)}
+.bar{height:6px;background:var(--soft);position:relative;min-width:60px;border-radius:3px;overflow:hidden}.bar i{position:absolute;inset:0 auto 0 0;border-radius:3px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.g2>.panel{margin-bottom:0}.g2+.panel,.g2+.g2{margin-top:16px}
+.gwide{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:16px;margin-bottom:16px}.gwide>.panel{margin:0}
+.fig{position:relative;min-height:280px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.leg{display:grid;gap:7px;font-size:13px}.leg div{display:flex;gap:8px;align-items:center}.sw{width:10px;height:10px;flex:none;display:inline-block;border-radius:3px}
+.note{font-size:12.5px;color:var(--mute)}.warn{border-left:3px solid var(--warn);padding:8px 12px;background:var(--warnSoft);margin:8px 0;font-size:14px;border-radius:0 8px 8px 0}
+code{font-size:.92em;background:var(--soft);padding:1px 5px;border-radius:4px}
+/* 기여도 */
+.attr{display:grid;gap:12px;margin-top:4px}.attr .ar{display:grid;grid-template-columns:6.5em minmax(0,1fr) 4.2em;gap:10px;align-items:center;font-size:13px}
+.attr .ar>span:first-child{color:var(--mute)}.attr .tr{position:relative;height:8px;background:var(--soft);border-radius:4px}
+.attr .tr::after{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;border-left:1px dashed var(--line)}
+.attr .tr i{position:absolute;top:0;bottom:0;border-radius:4px}.attr .ar b{text-align:right;font-weight:600}
+/* 목표 비율 */
+.tgt{display:grid;grid-template-columns:minmax(0,1fr) 7em;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}.tgt input{text-align:right;width:100%}
+.sum{font-size:24px;font-weight:700}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 textarea{width:100%;min-height:120px;font-size:14px}
-.banner{background:var(--ink);color:var(--bg);padding:10px max(5vw,16px);font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.welcome{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.welcome .panel{display:flex;flex-direction:column;gap:10px;margin:0}.welcome .panel p{margin:0;flex:1}
-dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:0;width:min(1100px,96vw);max-height:92vh;overflow:auto}
-dialog::backdrop{background:rgba(0,0,0,.45)}
+.welcome{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}.welcome .panel{display:flex;flex-direction:column;gap:10px;margin:0}.welcome .panel p{margin:0;flex:1;color:var(--mute)}
+/* 배당 */
+.divform{display:grid;grid-template-columns:9.5em minmax(0,1.5fr) 6.5em 8.5em 7.5em minmax(0,1.3fr) auto;gap:10px;align-items:end}.divform input,.divform select{width:100%}
+.mbars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:end;height:120px;margin:8px 0 4px}.mbars div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--faint)}.mbars i{display:block;width:100%;max-width:28px;background:var(--accSoft);min-height:1px;border-radius:4px 4px 0 0}.mbars div.on i{background:var(--acc)}
+.dtab .acts{white-space:nowrap;text-align:right}.dtab tr.editing td{background:var(--accSoft)}
+/* 대화상자 */
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:0;width:min(1100px,96vw);max-height:92vh;overflow:auto;border-radius:14px}
+dialog::backdrop{background:rgba(15,27,51,.45)}
 .dh{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
 .db{padding:16px 20px}.maps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}.maps select{width:100%}
-.pv input,.pv select{min-height:36px;padding:5px 6px;font-size:14px;width:100%}.pv td{padding:5px 6px}.pv tr.off{opacity:.4}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;z-index:20;font-size:15px;max-width:92vw}
-@media(max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:600px){.g2{grid-template-columns:minmax(0,1fr)}.scale{display:none}.gr{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.gr .trk{grid-column:1/-1;grid-row:2}.gr .ro{grid-row:1;grid-column:2}table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}}
+.pv input,.pv select{min-height:34px;padding:5px 6px;font-size:13px;width:100%}.pv td{padding:5px 6px}.pv tr.off{opacity:.4}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--side);color:#fff;padding:10px 18px;z-index:20;font-size:14px;max-width:92vw;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+/* 반응형 */
+@media(max-width:1100px){.divform{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.app{grid-template-columns:minmax(0,1fr);background:none}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;padding:10px 14px;gap:10px}
+  .brand{padding:0;flex:1}.side .sec,.side .ilist,.side .hr,#nav{display:none}
+  .sfoot{margin:0;border:0;padding:0;display:flex;align-items:center;gap:8px}.sfoot .ver{display:none}.sync{color:var(--sideInk);font-size:12px}
+  #tabs{display:flex}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome,.gwide{grid-template-columns:minmax(0,1fr)}.top{padding:14px 16px}}
+@media(max-width:600px){.g2{grid-template-columns:minmax(0,1fr)}.scale{display:none}.gr{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.gr .trk{grid-column:1/-1;grid-row:2}.gr .ro{grid-row:1;grid-column:2}
+  table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7.5em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7em;margin-inline-start:-7.5em;white-space:normal;color:var(--faint)}.stack td:empty{display:none}
+  .divform{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.topr .chip{display:none}.sync span:last-child{display:none}}
 @media(prefers-reduced-motion:no-preference){.trk .pt{transition:left .4s ease}}
-</style>
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
-<div class="banner" id="sampleBar" hidden><span>지금 보이는 숫자는 예시 데이터입니다.</span><span class="row"><button class="a" id="sampleImport" style="min-height:38px">내 Numbers 파일로 시작</button><button class="g" id="startMine" style="min-height:38px;color:var(--bg);border-color:var(--bg)">빈 상태로 시작</button></span></div>
-<header class="band"><div class="wrap">
-  <div class="kick"><span>역할 중심 자산배분 · 『1억부터는 포트폴리오다』(신환종) 방식 참고 · <b id="appVer">앱 v?</b></span>
-    <span class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">이 기기에 저장</span><button class="g" id="authBtn" hidden style="min-height:36px;padding:5px 12px;font-size:14px">구글 로그인</button></span></div>
-  <h1 id="head">…</h1>
+<div class="app">
+<aside class="side">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#1f3a34"/><path d="M5 17h16M5 12h16M5 7h16" stroke="#5b6f8f" stroke-width="1.6"/><path d="M15 3.5l3 3.5-3 3.5-3-3.5z" fill="#3ccf8e"/><rect x="8" y="10.5" width="2" height="3" fill="#e8ebf1"/><rect x="16" y="15.5" width="2" height="3" fill="#e8ebf1"/></svg>자산 계기판</div>
+  <div class="sec">증권사·기관</div>
+  <ul class="ilist" id="sideInst"></ul>
+  <div class="hr"></div>
+  <nav id="nav">
+    <a href="#rebalance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="7" cy="18" r="2" fill="currentColor"/></svg>리밸런싱</a>
+    <a href="#holdings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M9.5 9.5V20"/></svg>보유자산</a>
+    <a href="#returns"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg>수익 분석</a>
+    <a href="#targets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 5.5"/></svg>목표 비율·설정</a>
+  </nav>
+  <div class="sfoot">
+    <span class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">이 기기에 저장</span></span>
+    <button id="authBtn" hidden>구글 로그인</button>
+    <span class="ver">『1억부터는 포트폴리오다』 방식 참고 · <b id="appVer">앱 v?</b></span>
+  </div>
+</aside>
+
+<main class="main">
+<div class="banner" id="sampleBar" hidden><span>지금 보이는 숫자는 예시 데이터입니다.</span><span class="row"><button class="a" id="sampleImport">내 Numbers 파일로 시작</button><button class="g" id="startMine">빈 상태로 시작</button></span></div>
+<header class="top">
+  <div class="ttl"><h1>내 포트폴리오</h1><span class="badge">KRW</span></div>
+  <div class="topr"><span class="chip" id="asOf">기준 —</span><span class="live" id="live"><i></i><span id="liveTxt">오프라인</span></span></div>
+</header>
+<nav id="tabs"><a href="#rebalance">리밸런싱</a><a href="#holdings">보유자산</a><a href="#returns">수익 분석</a><a href="#targets">목표 비율·설정</a></nav>
+
+<div class="content">
   <div class="kpis" id="kpis"></div>
-  <div class="pricebar"><span id="priceTxt">종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.</span><span class="row" style="gap:8px" id="fxBox" hidden><span id="fxTxt"></span><input id="fxIn" type="number" inputmode="decimal" placeholder="직접 입력" style="width:7.5em;min-height:36px;padding:5px 8px;font-size:14px" aria-label="원/달러 환율 직접 입력"><button class="g" id="fxSet" style="min-height:36px;padding:5px 10px;font-size:13px">환율 적용</button></span>
-  <span class="row" style="gap:8px"><a id="sheetLink" target="_blank" rel="noopener" hidden style="color:var(--mute);font-size:13px">시세표 열기</a><button class="x" id="debugBtn" style="font-size:13px;min-height:38px">시세 점검</button><button class="g" id="priceBtn" style="min-height:38px;padding:6px 14px;font-size:14px">시세 갱신</button></span></div>
-  <pre id="priceDebug" hidden style="background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-size:13px;max-height:260px;overflow:auto;white-space:pre-wrap;margin:8px 0 0"></pre>
-</div></header>
-<nav id="nav"><a href="#rebalance">리밸런싱</a><a href="#holdings">보유자산</a><a href="#returns">수익 분석</a><a href="#targets">목표 비율·설정</a></nav>
+  <div class="insight"><span class="spark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0f1b33"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></span><b>요약</b><span id="head">…</span></div>
+  <div class="pricebar"><span id="priceTxt">종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.</span>
+    <span class="row" id="fxBox" hidden><span id="fxTxt"></span><input id="fxIn" type="number" inputmode="decimal" placeholder="직접 입력" style="width:7.5em;min-height:34px;padding:5px 8px;font-size:13px" aria-label="원/달러 환율 직접 입력"><button class="g" id="fxSet" style="min-height:34px;padding:5px 10px;font-size:13px">환율 적용</button></span>
+    <span class="row"><a id="sheetLink" target="_blank" rel="noopener" hidden style="color:var(--mute)">시세표 열기</a><button class="x" id="debugBtn" style="font-size:13px">시세 점검</button><button class="g" id="priceBtn" style="min-height:34px;padding:5px 14px;font-size:13px">시세 갱신</button></span></div>
+  <pre id="priceDebug" hidden></pre>
 
-<main class="band"><div class="wrap">
-<section id="welcome" hidden>
-  <div class="welcome" style="margin-bottom:18px">
-    <div class="panel"><h2>Numbers 파일로 시작</h2><p>Numbers·엑셀·CSV로 정리해 둔 자산표를 올리면 열을 자동으로 알아보고, 확인 후 한 번에 불러옵니다.</p><button class="a" data-open-import>파일 올리기</button></div>
-    <div class="panel"><h2>직접 입력</h2><p>증권사, 계좌, 상품, 역할, 원금, 평가액을 한 줄씩 넣습니다.</p><button data-go="holdings" id="goManual">보유자산 입력하기</button></div>
-    <div class="panel"><h2>예시로 둘러보기</h2><p>12개 자산이 담긴 예시 포트폴리오로 기능을 먼저 살펴봅니다.</p><button class="g" id="loadSample2">예시 데이터 보기</button></div>
-  </div>
-</section>
-
-<section class="view" id="v-rebalance">
-  <div class="ctl">
-    <label class="f">허용 밴드 방식<span class="seg" id="bandType"><button data-v="abs">절대 ±%p</button><button data-v="rel">상대 ±%</button></span></label>
-    <label class="f">밴드 폭<input id="bandV" type="number" min="1" max="50" step="0.5" style="width:7em"></label>
-    <label class="f">리밸런싱 방식<span class="seg" id="mode"><button data-v="full">전체 목표 복원</button><button data-v="cash">추가 납입금으로만(매도 없음)</button></span></label>
-    <label class="f">이번 추가 납입금(원)<input id="newCash" type="number" min="0" step="100000" style="width:11em"></label>
-  </div>
-  <div class="panel">
-    <div class="scale"><span>자산 역할</span><div class="ticks" id="ticks"></div><span style="text-align:right">현재 / 목표 · 매매</span></div>
-    <div id="gauge"></div>
-    <p class="note" style="margin:10px 0 0">◆ 현재 비중 · 검은 눈금 = 목표 · 회색 구간 = 허용 밴드. 바늘이 주황이면 밴드를 벗어난 것입니다.</p>
-  </div>
-  <div class="panel"><h2>실행 계획</h2><div id="plan"></div></div>
-  <div class="g2">
-    <div class="panel"><h2>점검 항목</h2><div id="checks"></div></div>
-    <div class="panel"><h2>리밸런싱 요령</h2>
-      <p style="margin-top:0">비중 이탈이 작을 때는 매도 대신 <b>추가 납입금을 부족한 자산에 먼저</b> 넣으면 매매비용과 세금 없이 비중을 맞출 수 있습니다. 위의 ‘추가 납입금으로만’ 방식이 이 계산입니다.</p>
-      <p>매도가 필요하면 ISA·연금저축·IRP 안에서 먼저 조정하세요. 계좌 안의 매매차익은 인출 때까지 과세가 미뤄집니다. 해외주식 직접투자의 양도차익은 연 250만원 공제 후 과세되므로 일반계좌 매도는 마지막에 고려합니다.</p>
-      <p class="note">세금은 개인 상황에 따라 다르므로 실행 전에 증권사나 세무 전문가에게 확인하세요. 투자 자문이 아닌 계산 도구입니다.</p></div>
-  </div>
-</section>
-
-<section class="view" id="v-holdings">
-  <div class="ctl" style="justify-content:space-between">
-    <label class="f">증권사·기관 필터<select id="instFilter"></select></label>
-    <div class="row"><button class="a" data-open-import>Numbers·엑셀 불러오기</button><button id="addRow">+ 자산 추가</button><button class="g" id="sortRows">역할별 정렬</button></div>
-  </div>
-  <div class="panel scroll"><table class="ht"><thead><tr><th style="width:11%">증권사·기관</th><th style="width:9%">계좌</th><th>상품명</th><th style="width:10%">종목코드</th><th style="width:10%">역할</th><th class="n" style="width:8%">수량</th><th class="n" style="width:11%">투자원금(원)</th><th class="n" style="width:12%">평가금액(원)</th><th class="n" style="width:7%">수익률</th><th style="width:40px"></th></tr></thead><tbody id="hbody"></tbody><tfoot id="hfoot"></tfoot></table></div>
-  <div id="undoHost"></div>
-  <p class="note" style="margin-top:-8px">종목코드 예: 국내 6자리 <code>069500</code>, 미국 <code>QQQ</code>·<code>AAPL</code>, 가상자산 <code>BTC</code>. 종목코드와 수량이 있으면 평가금액은 ‘수량 × 현재가(× 환율)’로 자동 계산되어 직접 고칠 수 없습니다. CMA·예금·펀드·금현물처럼 시세가 없는 상품은 종목코드를 비우고 평가금액을 직접 입력하세요.</p>
-  <div class="g2">
-    <div class="panel"><h2>증권사·기관별</h2><div id="byInst"></div></div>
-    <div class="panel"><h2>계좌 유형별</h2><div id="byAcct"></div></div>
-  </div>
-</section>
-
-<section class="view" id="v-returns">
-  <div class="kpis" id="rkpis" style="margin-bottom:18px"></div>
-  <div class="panel">
-    <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">평가액과 투자원금 추이</h2><button id="snap">오늘 상태 기록</button></div>
-    <div class="fig"><svg id="line"></svg></div>
-    <p class="note">기록 시점 사이의 수익률은 입금·출금을 뺀 수정 디츠(Modified Dietz) 방식으로 계산해 이어 붙였습니다(시간가중수익률 근사). 마지막 점은 현재 입력값입니다.</p>
-    <div id="snapList" class="row" style="gap:6px"></div>
-  </div>
-  <div class="panel" id="divPanel">
-    <h2>배당·이자</h2>
-    <div class="kpis" id="divKpis" style="margin-bottom:14px"></div>
-    <div class="divform">
-      <label class="f">받은 날<input type="date" id="dvDate"></label>
-      <label class="f">어느 자산에서<select id="dvHold"></select></label>
-      <label class="f">받은 금액(원, 세후)<input type="number" id="dvAmt" min="0" step="1000" inputmode="numeric"></label>
-      <label class="f">받은 돈은<select id="dvWhere"><option value="dep">계좌 현금(예수금)으로 남김</option><option value="wd">인출해서 썼음</option></select></label>
-      <button id="dvAdd">기록</button>
+  <section id="welcome" hidden>
+    <div class="welcome">
+      <div class="panel"><h2>Numbers 파일로 시작</h2><p>Numbers·엑셀·CSV로 정리해 둔 자산표를 올리면 열을 자동으로 알아보고, 확인 후 한 번에 불러옵니다.</p><button class="a" data-open-import>파일 올리기</button></div>
+      <div class="panel"><h2>직접 입력</h2><p>증권사, 계좌, 상품, 역할, 원금, 평가액을 한 줄씩 넣습니다.</p><button data-go="holdings" id="goManual">보유자산 입력하기</button></div>
+      <div class="panel"><h2>예시로 둘러보기</h2><p>12개 자산이 담긴 예시 포트폴리오로 기능을 먼저 살펴봅니다.</p><button class="g" id="loadSample2">예시 데이터 보기</button></div>
     </div>
-    <p class="note">‘계좌 현금으로 남김’을 고르면 같은 증권사·계좌의 예수금(유동성)이 그만큼 늘어 자산 비중에 바로 반영됩니다. 배당금은 무료로 자동으로 받아 올 방법이 없어 받은 날 기록해 주세요. 배당으로 산 주식은 보유자산의 수량을 늘리면 됩니다.</p>
-    <h3 style="margin-top:14px">최근 12개월 월별 배당·이자</h3>
-    <div class="mbars" id="divBars"></div>
-    <div id="divList"></div>
-  </div>
-  <div class="g2">
-    <div class="panel"><h2>역할별 비중</h2><div class="g2" style="align-items:center"><svg viewBox="0 0 200 200" id="donut" style="width:100%;max-width:240px"></svg><div class="leg" id="donutLeg"></div></div></div>
-    <div class="panel"><h2>역할별 수익률</h2><div id="byRoleRet"></div></div>
-  </div>
-  <div class="panel"><h2>상품별 수익률</h2><div id="byItem"></div></div>
-</section>
+  </section>
 
-<section class="view" id="v-targets">
-  <div class="g2">
-    <div class="panel">
-      <h2>생애주기 프리셋</h2>
-      <div class="row" style="margin-bottom:10px"><span class="seg" id="age"><button data-v="30">30대</button><button data-v="40">40대</button><button data-v="50">50대</button><button data-v="60">60대</button></span><span class="seg" id="style"><button data-v="보수">보수형</button><button data-v="공격">공격형</button></span></div>
-      <button id="applyPreset">이 프리셋을 목표 비율로 적용</button>
-      <p class="note">기본값은 <b id="defName"></b>입니다. 프리셋 숫자는 깃허브의 <code>settings.js</code>에서 고칠 수 있습니다. 책이 밝힌 원칙(돈의 역할 분리, 코어 70~80%·위성 20~30%, 나이가 들수록 방어·현금흐름 강화)에 맞춘 <b>예시 비율</b>이며 책 6장 16개 포트폴리오의 실제 숫자가 아닙니다.</p>
-      <h3 style="margin-top:18px">이 방식의 뼈대</h3>
-      <p style="margin-top:0">자산을 이름이 아니라 <b>역할</b>로 나눕니다. 1억 원 단계에서는 유동성·성장·방어 세 칸을 나누는 습관부터, 자산이 커질수록 인컴·금·대체투자를 더합니다. 전체를 한 덩어리로 보는 통합 포트폴리오 접근(TPA)을 따릅니다.</p>
-      <p><b>계좌 배치 예:</b> IRP에는 방어 자산, ISA에는 국내 상장 해외주식형 ETF, 연금저축에는 장기 복리 자산. 기준은 역할과 세후 효율입니다.</p>
-      <p class="note">출처: 교보문고 『1억부터는 포트폴리오다』 책 소개·목차, 한국경제 2026.6.30 [책마을] 서평.</p>
+  <section class="view" id="v-rebalance">
+    <div class="ctl">
+      <label class="f">허용 밴드<span class="seg" id="bandType"><button data-v="abs">절대 ±%p</button><button data-v="rel">상대 ±%</button></span></label>
+      <label class="f">밴드 폭<input id="bandV" type="number" min="1" max="50" step="0.5" style="width:6.5em"></label>
+      <label class="f">리밸런싱 방식<span class="seg" id="mode"><button data-v="full">전체 목표 복원</button><button data-v="cash">추가 납입금으로만</button></span></label>
+      <label class="f">이번 추가 납입금(원)<input id="newCash" type="number" min="0" step="100000" style="width:10em"></label>
     </div>
     <div class="panel">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">목표 비율(%)</h2><span class="sum" id="tsum"></span></div>
-      <div id="tgts"></div>
-      <div id="coreSat" class="note" style="margin-top:10px"></div>
+      <div class="ph"><h2>역할별 비중 · 목표 대비</h2><span class="note">◆ 현재 · 세로선 목표 · 초록 구간 허용 밴드 · 주황은 밴드 이탈</span></div>
+      <div class="scale"><span>자산 역할</span><div class="ticks" id="ticks"></div><span style="text-align:right">현재 / 목표 · 매매</span></div>
+      <div id="gauge"></div>
     </div>
-  </div>
-  <div class="panel"><h2>데이터 백업·이동</h2>
-    <p class="note" style="margin-top:0">자산 정보는 이 기기에 저장되고, 구글 로그인하면 내 구글 드라이브의 <code>자산관리_데이터.json</code>에도 자동 저장됩니다. 깃허브에는 자산 정보가 올라가지 않습니다.</p>
-    <div class="row"><button data-open-import>Numbers·엑셀 불러오기</button><button class="g" id="dlJson">백업 파일(JSON) 저장</button><button class="g" id="dlCsv">보유자산 CSV 저장</button><button class="g" id="dlTpl">입력 양식(엑셀) 받기</button><button class="g" id="loadSample">예시 데이터 보기</button><button class="g" id="clearAll">전부 비우기</button></div>
-    <div class="row" style="margin-top:12px"><label class="f">백업 파일(JSON) 가져오기<input type="file" id="importJson" accept=".json,application/json"></label><span class="note" id="ioMsg"></span></div>
-  </div>
-</section>
-</div></main>
+    <div class="panel"><h2>실행 계획</h2><div id="plan"></div></div>
+    <div class="g2">
+      <div class="panel"><h2>점검 항목</h2><div id="checks"></div></div>
+      <div class="panel"><h2>리밸런싱 요령</h2>
+        <p style="margin-top:0">비중 이탈이 작을 때는 매도 대신 <b>추가 납입금을 부족한 자산에 먼저</b> 넣으면 매매비용과 세금 없이 비중을 맞출 수 있습니다. 위의 ‘추가 납입금으로만’ 방식이 이 계산입니다.</p>
+        <p>매도가 필요하면 ISA·연금저축·IRP 안에서 먼저 조정하세요. 계좌 안의 매매차익은 인출 때까지 과세가 미뤄집니다. 해외주식 직접투자의 양도차익은 연 250만원 공제 후 과세되므로 일반계좌 매도는 마지막에 고려합니다.</p>
+        <p class="note">세금은 개인 상황에 따라 다르므로 실행 전에 증권사나 세무 전문가에게 확인하세요. 투자 자문이 아닌 계산 도구입니다.</p></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-holdings">
+    <div class="ctl" style="justify-content:space-between">
+      <label class="f">증권사·기관<select id="instFilter"></select></label>
+      <div class="row"><button class="a" data-open-import>Numbers·엑셀 불러오기</button><button id="addRow">+ 자산 추가</button><button class="g" id="sortRows">역할별 정렬</button></div>
+    </div>
+    <div class="panel scroll" style="padding:8px 12px"><table class="ht"><thead><tr><th style="width:11%">증권사·기관</th><th style="width:9%">계좌</th><th>상품명</th><th style="width:10%">종목코드</th><th style="width:10%">역할</th><th class="n" style="width:8%">수량</th><th class="n" style="width:11%">투자원금(원)</th><th class="n" style="width:12%">평가금액(원)</th><th class="n" style="width:7%">수익률</th><th style="width:40px"></th></tr></thead><tbody id="hbody"></tbody><tfoot id="hfoot"></tfoot></table></div>
+    <div id="undoHost"></div>
+    <p class="note" style="margin:-6px 0 16px">종목코드 예: 국내 주식·ETF 6자리 <code>069500</code>(코스닥 자동 판별), 미국 <code>AAPL</code>·<code>SPY</code>(거래소 자동 판별), 가상자산 <code>BTC</code>, 달러 예수금 <code>CASH:USD</code>(수량에 달러 금액). 종목코드와 수량이 있으면 평가금액은 ‘수량 × 현재가(× 환율)’로 자동 계산됩니다. CMA·예금·펀드·금현물처럼 시세가 없는 상품은 종목코드를 비우고 평가금액을 직접 입력하세요.</p>
+    <div class="g2">
+      <div class="panel"><h2>증권사·기관별</h2><div id="byInst"></div></div>
+      <div class="panel"><h2>계좌 유형별</h2><div id="byAcct"></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-returns">
+    <div class="kpis" id="rkpis" style="margin-bottom:16px"></div>
+    <div class="gwide">
+      <div class="panel">
+        <div class="ph"><h2>평가액과 투자원금 추이</h2><button class="g" id="snap" style="min-height:34px;font-size:13px">오늘 상태 기록</button></div>
+        <div class="fig"><svg id="line"></svg></div>
+        <div id="snapList" class="row" style="gap:6px;margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>수익 기여도</h2><span class="note">원금 대비 %p</span></div>
+        <div class="attr" id="attr"></div>
+        <p class="note" style="margin-top:14px">역할별로 ‘평가손익 ÷ 전체 투자원금’을 계산해 어느 자산이 수익을 끌어올렸는지 보여 줍니다. 배당·이자도 따로 표시합니다.</p>
+      </div>
+    </div>
+    <div class="panel" id="divPanel">
+      <h2>배당·이자</h2>
+      <div class="kpis" id="divKpis" style="margin-bottom:16px"></div>
+      <div class="divform">
+        <label class="f">받은 날<input type="date" id="dvDate"></label>
+        <label class="f">어느 자산에서<select id="dvHold"></select></label>
+        <label class="f">통화<select id="dvCur"><option value="KRW">원</option><option value="USD">달러</option></select></label>
+        <label class="f">받은 금액(세후)<input type="number" id="dvAmt" min="0" step="any" inputmode="decimal"></label>
+        <label class="f" id="dvFxWrap" hidden>적용 환율(원/달러)<input type="number" id="dvFx" min="0" step="any" inputmode="decimal"></label>
+        <label class="f">받은 돈은<select id="dvWhere"><option value="dep">계좌 현금(예수금)으로 남김</option><option value="wd">인출해서 썼음</option></select></label>
+        <span class="row" style="flex-wrap:nowrap"><button id="dvAdd" class="a">기록</button><button id="dvCancel" class="g" hidden>취소</button></span>
+      </div>
+      <p class="note" id="dvHint" style="margin:8px 0 0;min-height:1.2em"></p>
+      <p class="note" style="margin-top:4px">‘계좌 현금으로 남김’을 고르면 같은 증권사·계좌의 예수금이 늘어 비중에 바로 반영됩니다. 달러는 ‘예수금(USD)’에 쌓이고 환율에 따라 원화 평가액이 자동으로 바뀝니다. 기록은 아래 목록에서 <b>수정</b>하거나, <b>복사</b>해 같은 내용으로 새로 기록할 수 있습니다.</p>
+      <h3 style="margin-top:16px">최근 12개월 월별 배당·이자</h3>
+      <div class="mbars" id="divBars"></div>
+      <div id="divList"></div>
+    </div>
+    <div class="g2">
+      <div class="panel"><h2>역할별 비중</h2><div class="g2" style="align-items:center"><svg viewBox="0 0 200 200" id="donut" style="width:100%;max-width:220px"></svg><div class="leg" id="donutLeg"></div></div></div>
+      <div class="panel"><h2>역할별 수익률</h2><div id="byRoleRet"></div></div>
+    </div>
+    <div class="panel"><h2>상품별 수익률</h2><div id="byItem"></div></div>
+    <p class="note">시간가중수익률은 기록 시점 사이를 입금·출금을 뺀 수정 디츠 방식으로 계산해 이어 붙인 근사값입니다. 마지막 점은 현재 입력값입니다.</p>
+  </section>
+
+  <section class="view" id="v-targets">
+    <div class="g2">
+      <div class="panel">
+        <h2>생애주기 프리셋</h2>
+        <div class="row" style="margin-bottom:12px"><span class="seg" id="age"><button data-v="30">30대</button><button data-v="40">40대</button><button data-v="50">50대</button><button data-v="60">60대</button></span><span class="seg" id="style"><button data-v="보수">보수형</button><button data-v="공격">공격형</button></span></div>
+        <button id="applyPreset">이 프리셋을 목표 비율로 적용</button>
+        <p class="note">기본값은 <b id="defName"></b>입니다. 프리셋 숫자는 깃허브의 <code>settings.js</code>에서 고칠 수 있습니다. 책이 밝힌 원칙(돈의 역할 분리, 코어 70~80%·위성 20~30%, 나이가 들수록 방어·현금흐름 강화)에 맞춘 <b>예시 비율</b>이며 책 6장 16개 포트폴리오의 실제 숫자가 아닙니다.</p>
+        <h3 style="margin-top:16px">이 방식의 뼈대</h3>
+        <p style="margin-top:6px">자산을 이름이 아니라 <b>역할</b>로 나눕니다. 1억 원 단계에서는 유동성·성장·방어 세 칸을 나누는 습관부터, 자산이 커질수록 인컴·금·대체투자를 더합니다. 전체를 한 덩어리로 보는 통합 포트폴리오 접근(TPA)을 따릅니다.</p>
+        <p><b>계좌 배치 예:</b> IRP에는 방어 자산, ISA에는 국내 상장 해외주식형 ETF, 연금저축에는 장기 복리 자산. 기준은 역할과 세후 효율입니다.</p>
+        <p class="note">출처: 교보문고 『1억부터는 포트폴리오다』 책 소개·목차, 한국경제 2026.6.30 [책마을] 서평.</p>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>목표 비율(%)</h2><span class="sum" id="tsum"></span></div>
+        <div id="tgts"></div>
+        <div id="coreSat" class="note" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="panel"><h2>데이터 백업·이동</h2>
+      <p class="note" style="margin-top:0">자산 정보는 이 기기에 저장되고, 구글 로그인하면 내 구글 드라이브의 <code>자산관리_데이터.json</code>에도 자동 저장됩니다. 깃허브에는 자산 정보가 올라가지 않습니다.</p>
+      <div class="row"><button data-open-import>Numbers·엑셀 불러오기</button><button class="g" id="dlJson">백업 파일(JSON) 저장</button><button class="g" id="dlCsv">보유자산 CSV 저장</button><button class="g" id="dlTpl">입력 양식(엑셀) 받기</button><button class="g" id="loadSample">예시 데이터 보기</button><button class="g" id="clearAll">전부 비우기</button></div>
+      <div class="row" style="margin-top:12px"><label class="f">백업 파일(JSON) 가져오기<input type="file" id="importJson" accept=".json,application/json"></label><span class="note" id="ioMsg"></span></div>
+    </div>
+  </section>
+</div>
+</main>
+</div>
 
 <dialog id="imp">
-  <div class="dh"><h2 style="margin:0">Numbers·엑셀 파일 불러오기</h2><button class="x" id="impClose" aria-label="닫기" style="font-size:20px">✕</button></div>
+  <div class="dh"><h2>Numbers·엑셀 파일 불러오기</h2><button class="x" id="impClose" aria-label="닫기" style="font-size:20px">✕</button></div>
   <div class="db">
     <div class="row" style="align-items:end">
       <label class="f">파일 (.numbers .xlsx .xls .csv)<input type="file" id="impFile" accept=".numbers,.xlsx,.xls,.csv,.tsv"></label>
@@ -203,7 +306,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <p class="note" id="impMsg">Mac의 Numbers 파일을 그대로 올리면 됩니다. 읽히지 않으면 Numbers에서 <b>파일 → 내보내기 → Excel</b>로 저장한 파일을 올려 주세요. 파일은 이 기기 안에서만 읽고 어디에도 보내지 않습니다.</p>
     <div id="impStep2" hidden>
       <h3 style="margin-top:12px">열 연결 확인</h3>
-      <p class="note" style="margin-top:0">자동으로 고른 열이 맞는지 확인하세요. 평가금액 열이 없으면 수량×현재가로, 투자원금 열이 없으면 수량×매입단가로 계산합니다.</p>
+      <p class="note" style="margin-top:4px">자동으로 고른 열이 맞는지 확인하세요. 평가금액 열이 없으면 수량×현재가로, 투자원금 열이 없으면 수량×매입단가로 계산합니다.</p>
       <div class="maps" id="impMaps"></div>
       <div class="row" style="margin-top:10px"><label class="f">증권사 열이 없을 때 넣을 이름<input id="impInstDef" list="insts" placeholder="예: 미래에셋증권"></label><label class="f">불러오는 방식<span class="seg" id="impMode"><button data-v="replace" class="on">기존 자산 바꾸기</button><button data-v="add">기존에 추가</button></span></label></div>
       <h3 style="margin-top:16px">미리보기 <span class="note" id="impCount"></span></h3>
@@ -219,10 +322,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=9"></script>
+<script src="defaults.js?v=10"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
