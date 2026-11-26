@@ -13,7 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
-const APP_VERSION = "v10"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
+const APP_VERSION = "v11"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -47,6 +47,19 @@ function candidates(code){
 }
 const isCash = h => /^CASH:/.test(h.code || "");
 const isAuto = h => !!(h.code && h.qty > 0 && (h.price > 0 || isCash(h)));
+/* 같은 종목 묶기: 종목코드(거래소 표기는 무시) → 없으면 상품명(띄어쓰기·기호 무시)으로 같은 종목을 판단 */
+const codeBase = c => !c ? "" : /^(CURRENCY|CASH):/.test(c) ? c : c.replace(/^[A-Z]+:/, "");
+const nameKey = n => String(n || "").toUpperCase().replace(/[\s·.\-_()\[\]]/g, "");
+function secMap(){ const byName = {}; S.holdings.forEach(h => { if (h.code && h.name) byName[nameKey(h.name)] = codeBase(h.code); }); return byName; }
+function secKey(h, byName){ if (h.code) return "C:" + codeBase(h.code); const k = nameKey(h.name); return byName && byName[k] ? "C:" + byName[k] : k ? "N:" + k : "R:" + h.id; }
+function securities(list){ const byName = secMap(), m = new Map();
+  (list || S.holdings).forEach(h => { const k = secKey(h, byName); let g = m.get(k);
+    if (!g) { g = { key: k, name: h.name, code: h.code, role: h.role, rows: [], qty: 0, cost: 0, value: 0, price: 0, cur: "" }; m.set(k, g); }
+    g.rows.push(h); g.qty += +h.qty || 0; g.cost += h.cost; g.value += h.value;
+    if (!g.code && h.code) g.code = h.code; if (h.price > 0 && !g.price) { g.price = h.price; g.cur = h.cur; } if (h.name && h.name.length > (g.name || "").length && !g.name) g.name = h.name; });
+  return [...m.values()].sort((a, b) => b.value - a.value); }
+// 같은 종목의 다른 줄에서 코드·이름·역할을 가져옴
+function sameSec(h){ const byName = secMap(), k = secKey(h, byName); return S.holdings.filter(x => x !== h && secKey(x, byName) === k); }
 let toastT = 0;
 function toast(m){ const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3500); }
 function presetParts(name){ const m = /^(\d+)(.+)$/.exec(name) || []; return { age: m[1] || "50", style: m[2] || "공격" }; }
@@ -146,7 +159,7 @@ function renderChecks(c){
     o.push(`<div class="${r > L ? "warn" : ""}" style="margin:8px 0"><b>IRP·DC 위험자산 한도</b>: 위험자산 ${(r * 100).toFixed(0)}% / 한도 ${SET.RISK_LIMIT}% ${r > L ? "— 초과" : "— 정상"}<div class="note">settings.js의 RISKY_ROLES 역할을 위험자산으로 본 근사 판정입니다. 실제 분류는 상품마다 다릅니다.</div></div>`); }
   const sat = +S.targets.sat || 0;
   o.push(`<div style="margin:8px 0"><b>코어 · 위성</b>: 목표 코어 ${100 - sat}% · 위성 ${sat}% / 현재 위성 ${(c.T.v ? (c.R.sat ? c.R.sat.v : 0) / c.T.v * 100 : 0).toFixed(1)}%${sat > 30 ? ' <span class="tag o">위성 30% 초과</span>' : ""}</div>`);
-  S.holdings.filter(h => c.T.v && h.value / c.T.v > .25).forEach(h => o.push(`<div class="warn">단일 상품 쏠림: ${esc(h.name)}이 전체의 ${(h.value / c.T.v * 100).toFixed(0)}%입니다.</div>`));
+  securities().filter(g => c.T.v && g.value / c.T.v > .25).forEach(g => o.push(`<div class="warn">단일 종목 쏠림: ${esc(g.name)}이 전체의 ${(g.value / c.T.v * 100).toFixed(0)}%입니다${g.rows.length > 1 ? ` (${g.rows.length}개 계좌 합계)` : ""}.</div>`));
   const cv = c.R.cash ? c.R.cash.v : 0;
   o.push(`<div style="margin:8px 0"><b>유동성</b>: ${short(cv)} (${(c.T.v ? cv / c.T.v * 100 : 0).toFixed(1)}%) — 가까운 지출(통상 3~6개월 생활비)을 덮는지 확인하세요.</div>`);
   $("checks").innerHTML = o.join("");
@@ -163,15 +176,36 @@ function renderHoldings(){
   const f = $("instFilter").value;
   $("hbody").innerHTML = S.holdings.map((h, i) => { const au = isAuto(h);
     const px = isCash(h) ? `<div class="px">외화 현금 ${esc(h.cur)} · 1달러 ${Math.round(fxOf(h.cur)).toLocaleString("ko-KR") || "?"}원</div>` : h.code ? (h.perr ? '<div class="px err">시세 없음 · 직접 입력</div>' : h.fxerr ? `<div class="px err">${esc(h.cur)} 환율 없음 · 위에서 직접 입력</div>` : h.price && !(h.qty > 0) ? '<div class="px err">수량을 넣어 주세요</div>' : h.price ? `<div class="px">현재가 ${h.price.toLocaleString("ko-KR", { maximumFractionDigits: h.cur === "KRW" ? 0 : 2 })} ${esc(h.cur)}</div>` : '<div class="px">시세 갱신 대기</div>') : "";
-    return `<tr data-i="${i}" ${f && h.inst !== f ? "hidden" : ""}><td><input data-k="inst" list="insts" value="${esc(h.inst)}" aria-label="증권사"></td><td><select data-k="acct" aria-label="계좌">${ACCTS.map(a => `<option${a === h.acct ? " selected" : ""}>${esc(a)}</option>`).join("")}</select></td><td><input data-k="name" value="${esc(h.name)}" aria-label="상품명"></td><td><input data-k="code" value="${esc(h.code)}" placeholder="없음" aria-label="종목코드" autocapitalize="characters"></td><td><select data-k="role" aria-label="역할">${ROLES.map(x => `<option value="${x.k}"${x.k === h.role ? " selected" : ""}>${esc(x.n)}</option>`).join("")}</select></td><td><input class="n" data-k="qty" type="number" min="0" step="any" value="${h.qty || ""}" aria-label="수량"></td><td><input class="n" data-k="cost" type="number" min="0" step="10000" value="${h.cost}" aria-label="투자원금"></td><td><input class="n" data-k="value" type="number" min="0" step="10000" value="${Math.round(h.value)}" aria-label="평가금액" ${au ? 'readonly title="수량 × 현재가로 자동 계산"' : ""}>${px}</td><td class="n ${cls(ret(h))}" id="r-${h.id}">${pct(ret(h))}</td><td><button class="x" data-del="${i}" aria-label="삭제">✕</button></td></tr>`; }).join("")
+    return `<tr data-i="${i}" ${f && h.inst !== f ? "hidden" : ""}><td><input data-k="inst" list="insts" value="${esc(h.inst)}" aria-label="증권사"></td><td><select data-k="acct" aria-label="계좌">${ACCTS.map(a => `<option${a === h.acct ? " selected" : ""}>${esc(a)}</option>`).join("")}</select></td><td><input data-k="name" list="secs" value="${esc(h.name)}" aria-label="상품명" placeholder="종목명 (기존 종목은 목록에서 선택)"></td><td><input data-k="code" value="${esc(h.code)}" placeholder="없음" aria-label="종목코드" autocapitalize="characters"></td><td><select data-k="role" aria-label="역할">${ROLES.map(x => `<option value="${x.k}"${x.k === h.role ? " selected" : ""}>${esc(x.n)}</option>`).join("")}</select></td><td><input class="n" data-k="qty" type="number" min="0" step="any" value="${h.qty || ""}" aria-label="수량"></td><td><input class="n" data-k="cost" type="number" min="0" step="10000" value="${h.cost}" aria-label="투자원금"></td><td><input class="n" data-k="value" type="number" min="0" step="10000" value="${Math.round(h.value)}" aria-label="평가금액" ${au ? 'readonly title="수량 × 현재가로 자동 계산"' : ""}>${px}</td><td class="n ${cls(ret(h))}" id="r-${h.id}">${pct(ret(h))}</td><td><button class="x" data-del="${i}" aria-label="삭제">✕</button></td></tr>`; }).join("")
     || '<tr><td colspan="10" class="note">아직 자산이 없습니다. ‘Numbers·엑셀 불러오기’ 또는 ‘+ 자산 추가’로 시작하세요.</td></tr>';
-  renderHFoot();
+  renderHFoot(); if (hView === "sec") renderSecView();
 }
+let hView = "acct", secOpen = new Set();
+function renderSecView(){
+  const f = $("instFilter").value, list = securities(f ? S.holdings.filter(h => h.inst === f) : S.holdings), T = list.reduce((a, g) => a + g.value, 0);
+  $("secBody").innerHTML = list.map(g => { const r = g.cost ? (g.value - g.cost) / g.cost : 0, avg = g.qty > 0 ? g.cost / g.qty : 0, open = secOpen.has(g.key), multi = g.rows.length > 1;
+    const accts = g.rows.map(h => `${esc(h.inst || "기관 미입력")} ${esc(h.acct)}`).join(" · ");
+    return `<tr class="srow${open ? " open" : ""}" data-key="${esc(g.key)}"><td><button class="x tog" aria-expanded="${open}" title="계좌별 내역">${multi ? (open ? "▾" : "▸") : "·"}</button></td><td><span class="sw" style="background:${RM[g.role].c};margin-right:7px"></span><b>${esc(g.name || "(이름 없음)")}</b><div class="note">${g.rows.length}개 계좌 · ${accts}</div></td><td>${esc(g.code ? g.code.replace(/^[A-Z]+:/, "") : "")}</td><td>${esc(RM[g.role].n)}</td><td class="n">${g.qty ? (+g.qty.toFixed(4)).toLocaleString("ko-KR") : ""}</td><td class="n">${avg ? Math.round(avg).toLocaleString("ko-KR") : ""}</td><td class="n">${g.price ? g.price.toLocaleString("ko-KR", { maximumFractionDigits: g.cur === "KRW" ? 0 : 2 }) + " " + esc(g.cur) : ""}</td><td class="n">${won(g.cost)}</td><td class="n"><b>${won(g.value)}</b></td><td class="n">${T ? (g.value / T * 100).toFixed(1) + "%" : ""}</td><td class="n ${cls(r)}">${pct(r)}</td><td><button class="x" data-addsec="${esc(g.key)}" title="이 종목을 다른 증권사·계좌에 추가" style="white-space:nowrap">+ 계좌</button></td></tr>`
+      + (open ? g.rows.map(h => `<tr class="sub"><td></td><td colspan="3">${esc(h.inst || "기관 미입력")} · ${esc(h.acct)}</td><td class="n">${h.qty ? (+h.qty).toLocaleString("ko-KR") : ""}</td><td class="n">${h.qty > 0 ? Math.round(h.cost / h.qty).toLocaleString("ko-KR") : ""}</td><td></td><td class="n">${won(h.cost)}</td><td class="n">${won(h.value)}</td><td class="n">${g.value ? (h.value / g.value * 100).toFixed(0) + "%" : ""}</td><td class="n ${cls(ret(h))}">${pct(ret(h))}</td><td></td></tr>`).join("") : ""); }).join("")
+    || '<tr><td colspan="12" class="note">자산이 없습니다.</td></tr>';
+  const C = list.reduce((a, g) => a + g.cost, 0);
+  $("secFoot").innerHTML = `<tr><th></th><th colspan="6">${list.length}개 종목 합계</th><th class="n">${won(C)}</th><th class="n">${won(T)}</th><th class="n">100%</th><th class="n ${cls(T - C)}">${pct(C ? (T - C) / C : 0)}</th><th></th></tr>`;
+}
+function setHView(v){ hView = v; segSet("hView", v); $("acctPanel").hidden = v !== "acct"; $("secPanel").hidden = v !== "sec"; if (v === "sec") renderSecView(); }
+$("hView").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setHView(b.dataset.v); });
+$("secBody").addEventListener("click", e => {
+  const add = e.target.closest("[data-addsec]");
+  if (add) { const g = securities().find(x => x.key === add.dataset.addsec); if (!g) return; const o = g.rows[0];
+    S.holdings.push({ id: uid(), inst: "", acct: ACCTS[0], name: o.name, role: o.role, cost: 0, value: 0, code: g.code || "", qty: 0, price: g.price || 0, cur: g.cur || "", perr: false });
+    touch(); setHView("acct"); renderHoldings(); renderLive(); const ins = $("hbody").querySelectorAll("tr:last-child input"); if (ins[0]) ins[0].focus(); toast(`‘${o.name}’ 줄을 추가했습니다. 증권사·계좌와 수량, 원금을 넣으세요`); return; }
+  const tr = e.target.closest("tr.srow"); if (!tr) return; const k = tr.dataset.key; secOpen.has(k) ? secOpen.delete(k) : secOpen.add(k); renderSecView();
+});
 function renderHFoot(){ const v = S.holdings.reduce((a, h) => a + h.value, 0), c = S.holdings.reduce((a, h) => a + h.cost, 0); $("hfoot").innerHTML = `<tr><th colspan="6">합계</th><th class="n">${won(c)}</th><th class="n">${won(v)}</th><th class="n ${cls(v - c)}">${pct(c ? (v - c) / c : 0)}</th><th></th></tr>`; }
 function renderInstFilter(){
   const cur = $("instFilter").value, list = [...new Set(S.holdings.map(h => h.inst).filter(Boolean))];
   $("instFilter").innerHTML = '<option value="">전체</option>' + list.map(x => `<option${x === cur ? " selected" : ""}>${esc(x)}</option>`).join("");
   $("insts").innerHTML = [...new Set([...SET.INSTITUTIONS, ...list])].map(x => `<option value="${esc(x)}">`).join("");
+  $("secs").innerHTML = securities().filter(g => g.name && !/^예수금\(/.test(g.name)).map(g => `<option value="${esc(g.name)}">${esc(g.code ? g.code.replace(/^[A-Z]+:/, "") : "")} · ${esc(RM[g.role].n)} · ${g.rows.length}개 계좌</option>`).join("");
 }
 
 /* ---------- 화면: 수익 분석 ---------- */
@@ -182,7 +216,7 @@ function renderReturns(c){
   const pts = [...S.snaps].sort((a, b) => a.d.localeCompare(b.d)); if (S.holdings.length) pts.push({ d: "지금", v: c.T.v, c: c.T.c, now: 1 });
   const g = c.T.v - c.T.c, tw = pts.length > 1 ? twr(pts) : null; let ann = null;
   if (tw != null && S.snaps.length) { const days = (Date.parse(today()) - Date.parse(pts[0].d)) / 864e5; if (days >= 180) ann = Math.pow(1 + tw, 365 / days) - 1; }
-  const best = S.holdings.slice().sort((a, b) => ret(b) - ret(a))[0];
+  const best = securities().filter(g => g.cost).map(g => ({ name: g.name, cost: g.cost, value: g.value })).sort((a, b) => ret(b) - ret(a))[0];
   const D = divSum();
   $("rkpis").innerHTML = `<div class="kpi"><span>총수익률(평가손익 + 배당)</span><b class="${cls(g + D)}">${pct(c.T.c ? (g + D) / c.T.c : 0)}</b><span>평가 ${short(g)} · 배당 ${short(D)}</span></div>
   <div class="kpi"><span>기간 시간가중수익률</span><b class="${cls(tw || 0)}">${tw == null ? "—" : pct(tw)}</b><span>${pts.length > 1 ? pts[0].d + " 이후" : "기록이 2개 이상 필요"}</span></div>
@@ -195,7 +229,7 @@ function renderReturns(c){
   $("donut").innerHTML = `<circle r="70" cx="100" cy="100" fill="none" stroke="var(--band)" stroke-width="34"/>${arcs}<text x="100" y="96" text-anchor="middle" font-size="13" fill="var(--mute)">총 평가액</text><text x="100" y="117" text-anchor="middle" font-size="20" font-weight="700" fill="var(--ink)">${short(T)}</text>`;
   $("donutLeg").innerHTML = ROLES.map(r => `<div><span class="sw" style="background:${r.c}"></span><span style="flex:1">${esc(r.n)}</span><b>${(T ? c.R[r.k].v / T * 100 : 0).toFixed(1)}%</b></div>`).join("");
   $("byRoleRet").innerHTML = gtable(group(h => h.role), T, true);
-  $("byItem").innerHTML = S.holdings.length ? `<table class="stack"><thead><tr><th>상품</th><th>기관 · 계좌</th><th class="n">원금</th><th class="n">평가액</th><th class="n">손익</th><th class="n">수익률</th></tr></thead><tbody>${S.holdings.slice().sort((x, y) => ret(y) - ret(x)).map(h => { const d = h.value - h.cost; return `<tr><td><span class="sw" style="background:${RM[h.role].c};margin-right:6px"></span>${esc(h.name)}</td><td>${esc(h.inst)} · ${esc(h.acct)}</td><td class="n">${short(h.cost)}</td><td class="n">${short(h.value)}</td><td class="n ${cls(d)}">${short(d)}</td><td class="n ${cls(d)}">${pct(ret(h))}</td></tr>`; }).join("")}</tbody></table>` : '<p class="note">자산이 없습니다.</p>';
+  $("byItem").innerHTML = S.holdings.length ? `<table class="stack"><thead><tr><th>종목</th><th>보유 계좌</th><th class="n">원금</th><th class="n">평가액</th><th class="n">손익</th><th class="n">수익률</th></tr></thead><tbody>${securities().sort((x, y) => (y.cost ? (y.value - y.cost) / y.cost : 0) - (x.cost ? (x.value - x.cost) / x.cost : 0)).map(g => { const d = g.value - g.cost; return `<tr><td><span class="sw" style="background:${RM[g.role].c};margin-right:6px"></span>${esc(g.name)}</td><td>${g.rows.length > 1 ? g.rows.length + "개 계좌 · " : ""}${esc([...new Set(g.rows.map(h => h.inst))].join(", "))}</td><td class="n">${short(g.cost)}</td><td class="n">${short(g.value)}</td><td class="n ${cls(d)}">${short(d)}</td><td class="n ${cls(d)}">${pct(g.cost ? d / g.cost : 0)}</td></tr>`; }).join("")}</tbody></table>` : '<p class="note">자산이 없습니다.</p>';
 }
 function renderDivs(c){
   const t = today(), y = t.slice(0, 4), y1 = new Date(); y1.setFullYear(y1.getFullYear() - 1);
@@ -273,8 +307,18 @@ $("hbody").addEventListener("input", e => {
   const r = $("r-" + h.id); if (r) { r.textContent = pct(ret(h)); r.className = "n " + cls(ret(h)); }
   touch(); soon();
 });
-$("hbody").addEventListener("change", e => { const k = e.target.dataset.k; if (k === "inst") renderInstFilter();
-  if (k === "code" || k === "qty") { renderHoldings(); if (token) schedulePrices(1500); } });
+$("hbody").addEventListener("change", e => { const k = e.target.dataset.k, tr = e.target.closest("tr"); if (!tr) return; const h = S.holdings[+tr.dataset.i]; if (k === "inst") renderInstFilter();
+  if ((k === "name" || k === "code") && h) { // 이미 있는 종목이면 코드·이름·역할·현재가를 맞춰 줌
+    const o = sameSec(h)[0];
+    if (o) { let ch = [];
+      if (!h.code && o.code) { h.code = o.code; ch.push("종목코드"); }
+      if (!h.name && o.name) { h.name = o.name; ch.push("상품명"); }
+      if (h.role !== o.role) { h.role = o.role; ch.push("역할"); }
+      if (h.code && o.price > 0 && !h.price) { h.price = o.price; h.cur = o.cur; h.perr = false; if (isAuto(h)) h.value = Math.round(h.qty * h.price * fxOf(h.cur)); }
+      if (ch.length) { touch(); toast(`이미 있는 종목 ‘${o.name || o.code}’과 같은 종목으로 묶었습니다 (${ch.join("·")} 채움)`); } }
+    renderHoldings(); renderLive(); if (k === "code" && token) schedulePrices(1500); return; }
+  if (k === "role" && h) { const others = sameSec(h); if (others.length) { others.forEach(x => x.role = h.role); touch(); renderHoldings(); renderLive(); toast(`같은 종목 ${others.length}개 줄의 역할도 ‘${RM[h.role].n}’로 바꿨습니다`); } }
+  if (k === "qty") { renderHoldings(); if (token) schedulePrices(1500); } });
 $("hbody").addEventListener("click", e => {
   const d = e.target.closest("[data-del]"); if (!d) return;
   const i = +d.dataset.del, h = S.holdings[i]; S.holdings.splice(i, 1); touch(); renderInstFilter(); renderHoldings(); renderLive();

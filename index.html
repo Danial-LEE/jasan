@@ -104,6 +104,7 @@ th{font-size:12px;color:var(--faint);font-weight:600}td.n,th.n{text-align:right;
 .ht input:hover,.ht select:hover{border-color:var(--line)}.ht input.n{text-align:right}
 .ht input[readonly]{background:transparent;border-color:transparent;color:var(--ink);font-weight:600}
 .ht .px{font-size:11.5px;color:var(--faint);white-space:nowrap;text-align:right}.ht .px.err{color:var(--warn)}
+.st{min-width:1180px}.st td:nth-child(2),.st th:nth-child(2){min-width:240px}.st tr.srow{cursor:pointer}.st tr.srow:hover td{background:var(--soft)}.st tr.sub td{background:var(--soft);font-size:13px;color:var(--mute);padding-top:7px;padding-bottom:7px}.st tr.srow .note{font-size:12px;margin-top:2px}.st .tog{min-height:28px;padding:2px 6px}.st tfoot th{border-top:1px solid var(--line);color:var(--ink)}
 .ht tfoot th{border-top:1px solid var(--line);border-bottom:0;color:var(--ink)}
 .bar{height:6px;background:var(--soft);position:relative;min-width:60px;border-radius:3px;overflow:hidden}.bar i{position:absolute;inset:0 auto 0 0;border-radius:3px}
 .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.g2>.panel{margin-bottom:0}.g2+.panel,.g2+.g2{margin-top:16px}
@@ -214,10 +215,12 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
 
   <section class="view" id="v-holdings">
     <div class="ctl" style="justify-content:space-between">
-      <label class="f">증권사·기관<select id="instFilter"></select></label>
+      <span class="row" style="gap:14px;align-items:end"><label class="f">증권사·기관<select id="instFilter"></select></label><label class="f">보기<span class="seg" id="hView"><button data-v="acct" class="on">계좌별</button><button data-v="sec">종목별 합계</button></span></label></span>
       <div class="row"><button class="a" data-open-import>Numbers·엑셀 불러오기</button><button id="addRow">+ 자산 추가</button><button class="g" id="sortRows">역할별 정렬</button></div>
     </div>
-    <div class="panel scroll" style="padding:8px 12px"><table class="ht"><thead><tr><th style="width:11%">증권사·기관</th><th style="width:9%">계좌</th><th>상품명</th><th style="width:10%">종목코드</th><th style="width:10%">역할</th><th class="n" style="width:8%">수량</th><th class="n" style="width:11%">투자원금(원)</th><th class="n" style="width:12%">평가금액(원)</th><th class="n" style="width:7%">수익률</th><th style="width:40px"></th></tr></thead><tbody id="hbody"></tbody><tfoot id="hfoot"></tfoot></table></div>
+    <div class="panel scroll" id="secPanel" hidden style="padding:8px 12px"><table class="st"><thead><tr><th style="width:28px"></th><th>종목</th><th style="width:8%">종목코드</th><th style="width:8%">역할</th><th class="n" style="width:7%">총 수량</th><th class="n" style="width:9%">평균단가(원)</th><th class="n" style="width:9%">현재가</th><th class="n" style="width:11%">투자원금</th><th class="n" style="width:11%">평가금액</th><th class="n" style="width:6%">비중</th><th class="n" style="width:7%">수익률</th><th style="width:64px"></th></tr></thead><tbody id="secBody"></tbody><tfoot id="secFoot"></tfoot></table>
+      <p class="note" style="margin:8px 4px 4px">증권사·계좌가 달라도 종목코드가 같으면(코드가 없으면 상품명이 같으면) 한 종목으로 합칩니다. 줄을 누르면 계좌별 내역이 펼쳐집니다. 평균단가는 ‘투자원금 합계 ÷ 총 수량’입니다.</p></div>
+    <div class="panel scroll" id="acctPanel" style="padding:8px 12px"><table class="ht"><thead><tr><th style="width:11%">증권사·기관</th><th style="width:9%">계좌</th><th>상품명</th><th style="width:10%">종목코드</th><th style="width:10%">역할</th><th class="n" style="width:8%">수량</th><th class="n" style="width:11%">투자원금(원)</th><th class="n" style="width:12%">평가금액(원)</th><th class="n" style="width:7%">수익률</th><th style="width:40px"></th></tr></thead><tbody id="hbody"></tbody><tfoot id="hfoot"></tfoot></table></div>
     <div id="undoHost"></div>
     <p class="note" style="margin:-6px 0 16px">종목코드 예: 국내 주식·ETF 6자리 <code>069500</code>(코스닥 자동 판별), 미국 <code>AAPL</code>·<code>SPY</code>(거래소 자동 판별), 가상자산 <code>BTC</code>, 달러 예수금 <code>CASH:USD</code>(수량에 달러 금액). 종목코드와 수량이 있으면 평가금액은 ‘수량 × 현재가(× 환율)’로 자동 계산됩니다. CMA·예금·펀드·금현물처럼 시세가 없는 상품은 종목코드를 비우고 평가금액을 직접 입력하세요.</p>
     <div class="g2">
@@ -316,16 +319,16 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
   </div>
 </dialog>
 
-<datalist id="insts"></datalist>
+<datalist id="insts"></datalist><datalist id="secs"></datalist>
 <div class="toast" id="toast" hidden></div>
 <script>
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=10"></script>
+<script src="defaults.js?v=11"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
