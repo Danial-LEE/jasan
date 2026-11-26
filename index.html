@@ -222,7 +222,7 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
       <p class="note" style="margin:8px 4px 4px">증권사·계좌가 달라도 종목코드가 같으면(코드가 없으면 상품명이 같으면) 한 종목으로 합칩니다. 줄을 누르면 계좌별 내역이 펼쳐집니다. 평균단가는 ‘투자원금 합계 ÷ 총 수량’입니다.</p></div>
     <div class="panel scroll" id="acctPanel" style="padding:8px 12px"><table class="ht"><thead><tr><th style="width:11%">증권사·기관</th><th style="width:9%">계좌</th><th>상품명</th><th style="width:10%">종목코드</th><th style="width:10%">역할</th><th class="n" style="width:8%">수량</th><th class="n" style="width:11%">투자원금(원)</th><th class="n" style="width:12%">평가금액(원)</th><th class="n" style="width:7%">수익률</th><th style="width:40px"></th></tr></thead><tbody id="hbody"></tbody><tfoot id="hfoot"></tfoot></table></div>
     <div id="undoHost"></div>
-    <p class="note" style="margin:-6px 0 16px">종목코드 예: 국내 주식·ETF 6자리 <code>069500</code>(코스닥 자동 판별), 미국 <code>AAPL</code>·<code>SPY</code>(거래소 자동 판별), 가상자산 <code>BTC</code>, 달러 예수금 <code>CASH:USD</code>(수량에 달러 금액). 종목코드와 수량이 있으면 평가금액은 ‘수량 × 현재가(× 환율)’로 자동 계산됩니다. CMA·예금·펀드·금현물처럼 시세가 없는 상품은 종목코드를 비우고 평가금액을 직접 입력하세요.</p>
+    <p class="note" style="margin:-6px 0 16px">종목코드 예: 국내 주식·ETF 6자리 <code>069500</code>(코스닥 자동 판별), 미국 <code>AAPL</code>·<code>SPY</code>(거래소 자동 판별), 가상자산 <code>BTC</code>, 달러 예수금 <code>CASH:USD</code>(수량에 달러 금액). 종목코드를 넣으면 상품명이 비어 있을 때 종목명을 자동으로 불러옵니다(구글 로그인 필요). 종목코드와 수량이 있으면 평가금액은 ‘수량 × 현재가(× 환율)’로 자동 계산됩니다. CMA·예금·펀드·금현물처럼 시세가 없는 상품은 종목코드를 비우고 평가금액을 직접 입력하세요.</p>
     <div class="g2">
       <div class="panel"><h2>증권사·기관별</h2><div id="byInst"></div></div>
       <div class="panel"><h2>계좌 유형별</h2><div id="byAcct"></div></div>
@@ -325,10 +325,10 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=11"></script>
+<script src="defaults.js?v=12"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
