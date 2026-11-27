@@ -135,6 +135,28 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
 .db{padding:16px 20px}.maps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}.maps select{width:100%}
 .pv input,.pv select{min-height:34px;padding:5px 6px;font-size:13px;width:100%}.pv td{padding:5px 6px}.pv tr.off{opacity:.4}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--side);color:#fff;padding:10px 18px;z-index:20;font-size:14px;max-width:92vw;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+
+/* 상단 총액 */
+.hero{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px}
+.hv{padding:18px 22px;border-left:1px solid var(--line)}.hv:first-child{border-left:0}
+.hv span{display:block;font-size:12px;font-weight:600;color:var(--faint)}.hv b{display:block;font-size:clamp(22px,2.6vw,32px);font-weight:750;letter-spacing:-.02em;margin:4px 0 2px;white-space:nowrap}.hv em{font-style:normal;font-size:12.5px;color:var(--mute)}
+/* 로고 */
+.nmc{display:flex;align-items:center;gap:8px}.nmc>input{flex:1}
+.lg{position:relative;flex:none;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb,var(--lc) 18%,var(--panel));color:var(--lc);display:grid;place-items:center;overflow:hidden;font-size:11px;font-weight:700}
+.lg b{font-weight:700}.lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;opacity:0}.lg.ok img{opacity:1}
+/* 차트 */
+.ch .fig{min-height:300px}.legrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin-top:10px;font-size:12.5px}
+.legrow div{display:flex;align-items:center;gap:6px;white-space:nowrap}.legrow em{font-style:normal;font-size:11.5px;width:4.2em;text-align:right}
+#chTree{position:relative;height:400px;border-radius:10px;overflow:hidden}
+.tm{position:absolute;box-sizing:border-box;border:1.5px solid var(--panel);padding:6px 8px;overflow:hidden;display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.25}
+.tm b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tm span{font-weight:700;font-size:13px}.tm em{font-style:normal;opacity:.85;font-size:11px}
+table.hm{border-collapse:separate;border-spacing:3px;font-size:12.5px}table.hm td,table.hm th{border:0;padding:7px 6px;text-align:center;border-radius:5px;white-space:nowrap}
+table.hm td:first-child,table.hm th:first-child{text-align:left;font-weight:500;color:var(--mute)}table.hm th .sw{margin-right:4px;vertical-align:0}
+table.hm.mh td{min-width:38px}table.hm tfoot th{color:var(--ink)}
+.rl{display:grid;grid-template-columns:minmax(0,1fr) 4em 4em 3.6em;gap:6px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line);align-items:center}
+.rl.h{font-size:11.5px;color:var(--faint);font-weight:600}.rl span:not(:first-child),.rl b{text-align:right}.rl b.o{color:var(--warn)}
+.cmp{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}.cmp svg{max-width:230px;margin:0 auto;display:block}
+@media(max-width:900px){.hero{grid-template-columns:minmax(0,1fr)}.hv{border-left:0;border-top:1px solid var(--line);padding:14px 18px}.hv:first-child{border-top:0}.cmp{grid-template-columns:minmax(0,1fr)}.cmp svg{max-width:240px;margin:0 auto}}
 /* 반응형 */
 @media(max-width:1100px){.divform{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.app{grid-template-columns:minmax(0,1fr);background:none}
@@ -159,6 +181,7 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
     <a href="#rebalance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="7" cy="18" r="2" fill="currentColor"/></svg>리밸런싱</a>
     <a href="#holdings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M9.5 9.5V20"/></svg>보유자산</a>
     <a href="#returns"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg>수익 분석</a>
+    <a href="#charts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="8" height="10" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="6" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="8" height="5" rx="1.5"/></svg>분석 차트</a>
     <a href="#targets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 5.5"/></svg>목표 비율·설정</a>
   </nav>
   <div class="sfoot">
@@ -174,9 +197,10 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
   <div class="ttl"><h1>내 포트폴리오</h1><span class="badge">KRW</span></div>
   <div class="topr"><span class="chip" id="asOf">기준 —</span><span class="live" id="live"><i></i><span id="liveTxt">오프라인</span></span></div>
 </header>
-<nav id="tabs"><a href="#rebalance">리밸런싱</a><a href="#holdings">보유자산</a><a href="#returns">수익 분석</a><a href="#targets">목표 비율·설정</a></nav>
+<nav id="tabs"><a href="#rebalance">리밸런싱</a><a href="#holdings">보유자산</a><a href="#returns">수익 분석</a><a href="#charts">분석 차트</a><a href="#targets">목표 비율·설정</a></nav>
 
 <div class="content">
+  <div class="hero" id="hero"></div>
   <div class="kpis" id="kpis"></div>
   <div class="insight"><span class="spark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0f1b33"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></span><b>요약</b><span id="head">…</span></div>
   <div class="pricebar"><span id="priceTxt">종목코드와 수량을 넣은 자산은 시세로 평가금액이 자동 계산됩니다.</span>
@@ -271,6 +295,22 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
     <p class="note">시간가중수익률은 기록 시점 사이를 입금·출금을 뺀 수정 디츠 방식으로 계산해 이어 붙인 근사값입니다. 마지막 점은 현재 입력값입니다.</p>
   </section>
 
+  <section class="view" id="v-charts">
+    <div class="gwide">
+      <div class="panel ch"><div class="ph"><h2>역할별 비중 변화</h2><span class="note">기록 시점마다 전체를 100%로 본 구성</span></div>
+        <div class="fig"><svg id="chMix"></svg></div><div class="legrow" id="chMixLeg"></div></div>
+      <div class="panel"><div class="ph"><h2>현재 vs 목표 비중</h2><span class="note">차이 단위 %p · 주황은 밴드 이탈</span></div>
+        <div class="cmp"><svg viewBox="0 0 240 240" id="chRing" style="width:100%"></svg><div id="chRingLeg"></div></div></div>
+    </div>
+    <div class="panel"><div class="ph"><h2>종목 히트맵</h2><span class="note">칸 크기 = 평가금액 · 색 = 수익률(빨강 상승, 파랑 하락, 진할수록 큼 · ±30% 기준)</span></div>
+      <div id="chTree"></div></div>
+    <div class="g2">
+      <div class="panel"><div class="ph"><h2>계좌 × 역할 히트맵</h2><span class="note">칸 숫자 = 전체 대비 비중(%)</span></div><div class="scroll" id="chMatrix"></div></div>
+      <div class="panel"><div class="ph"><h2>월별 수익률 히트맵</h2><span class="note">%, 입출금 제외(시간가중) · ±8% 기준 색</span></div><div class="scroll" id="chMonth"></div></div>
+    </div>
+    <p class="note">비중 변화와 월별 수익률은 기록(시세 갱신 때 하루 한 번 자동, 또는 ‘오늘 상태 기록’)이 쌓일수록 자세해집니다. 이번 버전부터 기록에 역할별 금액이 함께 저장됩니다.</p>
+  </section>
+
   <section class="view" id="v-targets">
     <div class="g2">
       <div class="panel">
@@ -327,10 +367,10 @@ dialog::backdrop{background:rgba(15,27,51,.45)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=13"></script>
+<script src="defaults.js?v=14"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

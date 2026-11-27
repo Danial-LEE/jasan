@@ -69,6 +69,13 @@ window.JASAN_DEFAULTS = {
   PRICE_REFRESH_MINUTES: 10,
   AUTO_SNAPSHOT: true,
   CRYPTO: ["BTC", "ETH", "XRP", "SOL", "DOGE", "ADA"],
+  /* 종목 로고 이미지 주소(앞에서부터 시도, 모두 실패하면 글자 아이콘). {code}=국내 6자리, {ticker}=미국 티커.
+     외부 서비스 이미지라 언제든 바뀌거나 막힐 수 있습니다. 로고를 끄려면 [] 로 비우세요. */
+  LOGO_URLS: {
+    KR: ["https://file.alphasquare.co.kr/media/images/stock_logo/kr/{code}.png", "https://static.toss.im/png-icons/securities/icn-sec-fill-{code}.png"],
+    US: ["https://financialmodelingprep.com/image-stock/{ticker}.png", "https://assets.parqet.com/logos/symbol/{ticker}?format=png"]
+  },
+
   /* 거래소 없이 티커만 적은 해외 종목(예: AAPL)을 찾아볼 미국 거래소 순서 */
   US_EXCHANGES: ["NASDAQ", "NYSE", "NYSEARCA", "NYSEAMERICAN", "BATS"],
 
@@ -76,10 +83,10 @@ window.JASAN_DEFAULTS = {
         위에서부터 먼저 맞는 것을 씁니다. 내 종목에 맞게 단어를 더하세요. */
   ROLE_HINTS: [
     ["cash", ["유동성", "현금", "CMA", "MMF", "예금", "적금", "파킹", "RP형", "발행어음", "머니마켓", "단기자금"]],
-    ["sat",  ["위성", "비트코인", "이더리움", "코인", "가상", "BTC", "ETH", "테마"]],
+    ["sat",  ["위성", "비트코인", "이더리움", "코인", "가상", "BTC", "ETH", "테마", "레버리지", "인버스", "2X", "3X"]],
     ["gold", ["금현물", "골드", "GOLD", "KRX금", "금ETF", "원자재", "원유", "은선물", "금·원자재"]],
     ["alt",  ["대체", "IMA", "리츠", "REIT", "인프라", "맥쿼리", "사모", "부동산", "국민성장펀드"]],
-    ["inc",  ["인컴", "회사채", "하이일드", "크레딧", "배당", "커버드콜", "달러채", "투자등급"]],
+    ["inc",  ["인컴", "회사채", "하이일드", "크레딧", "배당", "커버드콜", "달러채", "투자등급", "고배당", "월배당", "SCHD"]],
     ["bond", ["채권", "국고채", "국채", "국공채", "통안채", "미국채", "TREASURY", "종합채권", "방어"]],
     ["kr",   ["국내주식", "코스피", "코스닥", "KOSPI", "KOSDAQ", "200", "삼성전자", "SK하이닉스"]],
     ["gl",   ["해외주식", "S&P", "나스닥", "NASDAQ", "미국", "전세계", "MSCI", "선진국", "다우", "글로벌"]]
