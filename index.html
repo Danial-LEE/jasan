@@ -17,7 +17,7 @@
   --line:light-dark(#e7e9ee,#222c40);--soft:light-dark(#f7f8fa,#172036);
   --side:#0f1b33;--side2:#18264a;--sideInk:#c9d2e3;--sideMute:#7f8bab;
   --acc:#2f9e6e;--accSoft:light-dark(#e6f4ec,#14352a);--warn:#ef6a4c;--warnSoft:light-dark(#fdece7,#3a1f1a);
-  --up:light-dark(#e0484b,#ff6b6e);--down:light-dark(#2f6fe4,#6d9dff);--upSoft:light-dark(#fbe3e3,#3b1e22);--downSoft:light-dark(#e2ebfc,#1b2747);
+  --navy:light-dark(#0f1b33,#c9d4ec);--up:light-dark(#e0484b,#ff6b6e);--down:light-dark(#2f6fe4,#6d9dff);--upSoft:light-dark(#fbe3e3,#3b1e22);--downSoft:light-dark(#e2ebfc,#1b2747);
   --band:light-dark(#e3f1e9,#173326);--r:12px}
 *{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
 html{scroll-padding-top:70px}
@@ -85,6 +85,24 @@ button:disabled{opacity:.5;cursor:default}
 .seg{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:3px;flex-wrap:wrap}
 .seg button{border:0;background:transparent;color:var(--mute);min-height:34px;padding:5px 12px;border-radius:7px;font-weight:600}
 .seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+/* 월별 배당·이자 차트 (v17) */
+.dhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}.dhead h3{margin:0}
+.dchart{margin:12px 0 18px}
+.dsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.dsum>div{border:1px solid var(--line);border-radius:10px;padding:12px 16px;background:var(--panel);min-width:0}.dsum .dl{display:block;font-size:12.5px;color:var(--mute)}.dsum .dval{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 2px}.dsum .dval b{font-size:20px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}.dsum .dn{display:block;font-size:12px;color:var(--faint)}
+.chg .pc{font-style:normal;margin:0;padding:0}.chg{display:inline-flex;align-items:center;gap:0;font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chg.up{color:var(--up);background:color-mix(in srgb,var(--up) 11%,transparent)}.chg.dn{color:var(--down);background:color-mix(in srgb,var(--down) 11%,transparent)}.chg.nw{color:var(--acc);background:var(--band)}.chg.eq{color:var(--faint);background:var(--soft)}
+.dplot{position:relative;height:200px;margin-left:44px}
+.dgrid{position:absolute;left:0;right:0;border-top:1px dashed var(--line);font-size:11px;color:var(--faint)}.dgrid.z{border-top:1px solid var(--faint)}.dgrid span{position:absolute;right:calc(100% + 8px);top:-8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dcols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}
+.dcol{position:relative;cursor:default}.dcol:hover{background:color-mix(in srgb,var(--soft) 70%,transparent);border-radius:6px}
+.dcol i{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(60%,36px);border-radius:6px 6px 2px 2px;background:var(--acc);min-height:2px}
+.dcol.zero i{background:var(--line);height:2px!important}.dcol.cur i{background:repeating-linear-gradient(135deg,var(--acc) 0 6px,color-mix(in srgb,var(--acc) 70%,#fff) 6px 10px)}
+.dma{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.dma polyline{fill:none;stroke:var(--navy,#0f1b33);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.dmadot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--panel);border:2.5px solid var(--navy,#0f1b33);pointer-events:none;box-sizing:border-box}
+.dx{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));margin:8px 0 0 44px;text-align:center}.dx>div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--mute);min-width:0}.dx .mo i{font-style:normal}.dx b{font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}.dx div.cur .mo,.dx div.cur b{font-weight:800;color:var(--ink)}.dx div.pk b{color:var(--acc)}.dx .chg{font-size:11px;padding:1px 5px}
+.dleg{display:flex;flex-wrap:wrap;gap:4px 18px;margin:12px 0 0 44px;font-size:12px;color:var(--faint)}.dleg span{display:inline-flex;align-items:center;gap:6px}.dleg .l1{width:12px;height:12px;border-radius:3px;background:var(--acc)}.dleg .l2{width:18px;height:0;border-top:2.5px solid var(--navy,#0f1b33)}.dleg .l3{width:12px;height:12px;border-radius:3px;background:repeating-linear-gradient(135deg,var(--acc) 0 4px,color-mix(in srgb,var(--acc) 70%,#fff) 4px 7px)}
+@media(max-width:600px){.dsum{grid-template-columns:minmax(0,1fr);gap:8px}.dsum>div{padding:10px 14px}.dsum .dval b{font-size:17px}.dplot{height:170px;margin-left:30px}.dx,.dleg{margin-left:30px}.dx .mo i,.dx .chg .pc{display:none}.dx>div{font-size:11px;gap:2px}.dx b{font-size:10px;letter-spacing:-.02em}.dx .chg{font-size:9px;padding:0 3px;gap:0}.dgrid span{font-size:10px}.dleg{margin-left:0}}
 /* 계좌 켜기·끄기 (v16) */
 .tgl{position:relative;display:inline-flex;flex:none;width:34px;height:20px;cursor:pointer;vertical-align:middle}.tgl input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
 .tgl i{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .15s}.tgl i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
@@ -316,8 +334,8 @@ table.hm.mh td{min-width:38px}table.hm tfoot th{color:var(--ink)}
       </div>
       <p class="note" id="dvHint" style="margin:8px 0 0;min-height:1.2em"></p>
       <p class="note" style="margin-top:4px">‘계좌 현금으로 남김’을 고르면 같은 증권사·계좌의 예수금이 늘어 비중에 바로 반영됩니다. 달러는 ‘예수금(USD)’에 쌓이고 환율에 따라 원화 평가액이 자동으로 바뀝니다. 기록은 아래 목록에서 <b>수정</b>하거나, <b>복사</b>해 같은 내용으로 새로 기록할 수 있습니다.</p>
-      <h3 style="margin-top:16px">최근 12개월 월별 배당·이자</h3>
-      <div class="mbars" id="divBars"></div>
+      <div class="dhead"><h3>최근 12개월 월별 배당·이자</h3><span class="note">계좌를 끈 경우 켜진 계좌만 집계</span></div>
+      <div class="dchart" id="divBars"></div>
       <div id="divList"></div>
     </div>
     <div class="g2">
@@ -400,10 +418,10 @@ table.hm.mh td{min-width:38px}table.hm tfoot th{color:var(--ink)}
 /* 내 설정 파일(settings.js, config.js)에 오타가 있으면 알려 주기 위한 감시. 파일이 없어도 앱은 기본값으로 작동합니다. */
 window.__cfgErr = []; addEventListener("error", e => { const f = (e.filename || "").split("/").pop(); if (/^(settings|config)\.js/.test(f)) window.__cfgErr.push(f.split("?")[0]); }, true);
 </script>
-<script src="defaults.js?v=16"></script>
+<script src="defaults.js?v=17"></script>
 <script src="settings.js"></script>
 <script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

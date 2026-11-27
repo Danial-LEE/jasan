@@ -13,7 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
-const APP_VERSION = "v16"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
+const APP_VERSION = "v17"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -325,13 +325,32 @@ function renderDivs(c){
   const from12 = y1.getFullYear() + "-" + String(y1.getMonth() + 1).padStart(2, "0") + "-" + String(y1.getDate()).padStart(2, "0");
   const ytd = AD().filter(d => d.d.startsWith(y)).reduce((a, d) => a + d.amt, 0), d12 = AD().filter(d => d.d > from12).reduce((a, d) => a + d.amt, 0), all = divSum();
   $("divKpis").innerHTML = `<div class="kpi"><span>올해 받은 배당·이자</span><b>${short(ytd)}</b><span>${y}년</span></div><div class="kpi"><span>최근 12개월</span><b>${short(d12)}</b><span>월평균 ${short(d12 / 12)}</span></div><div class="kpi"><span>12개월 배당수익률</span><b>${c.T.v ? (d12 / c.T.v * 100).toFixed(2) + "%" : "—"}</b><span>최근 12개월 ÷ 현재 평가액</span></div><div class="kpi"><span>누적 배당·이자</span><b>${short(all)}</b><span>${S.divs.length}건 기록</span></div>`;
-  const months = []; const now = new Date(); for (let k = 11; k >= 0; k--) { const m = new Date(now.getFullYear(), now.getMonth() - k, 1); months.push(m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0")); }
-  const mv = months.map(m => AD().filter(d => d.d.startsWith(m)).reduce((a, d) => a + d.amt, 0)), mx = Math.max(1, ...mv);
-  $("divBars").innerHTML = months.map((m, i) => `<div class="${i === 11 ? "on" : ""}" title="${m} ${won(mv[i])}"><span style="margin-bottom:3px">${mv[i] ? short(mv[i]) : ""}</span><i style="height:${mv[i] / mx * 80}%"></i><span>${+m.slice(5)}월</span></div>`).join("");
+  drawDivChart();
   $("divList").innerHTML = S.divs.length ? `<table class="stack dtab"><thead><tr><th>받은 날</th><th>자산</th><th class="n">금액</th><th class="n">원화 환산</th><th>처리</th><th></th></tr></thead><tbody>${S.divs.slice().sort((a, b) => b.d.localeCompare(a.d)).map(d => `<tr class="${divEdit === d.id ? "editing" : ""}"><td>${d.d}</td><td>${esc(d.name)}</td><td class="n">${d.cur === "USD" ? "$" + (+d.amtCur).toLocaleString("en-US", { maximumFractionDigits: 2 }) : won(d.amt)}</td><td class="n">${d.cur === "USD" ? won(d.amt) + `<div class="note">@${(+d.fx).toLocaleString("ko-KR")}</div>` : ""}</td><td>${d.how === "dep" ? "계좌 현금으로" : "인출"}</td><td class="acts"><button class="x" data-divact="edit" data-id="${d.id}">수정</button><button class="x" data-divact="copy" data-id="${d.id}" title="같은 내용으로 새로 기록">복사</button><button class="x" data-divact="del" data-id="${d.id}" aria-label="삭제">삭제</button></td></tr>`).join("")}</tbody></table>` : '<p class="note">아직 기록이 없습니다.</p>'; clip("divList", 6);
   const sel = $("dvHold"), cur = sel.value; sel.innerHTML = S.holdings.filter(h => !/^예수금\(/.test(h.name)).map(h => `<option value="${h.id}"${h.id === cur ? " selected" : ""}>${esc(h.name || "이름 없음")} · ${esc(h.inst)} ${esc(h.acct)}</option>`).join("") || '<option value="">자산을 먼저 입력하세요</option>';
   if (!$("dvDate").value) $("dvDate").value = t; if (!divEdit) dvHint();
 }
+/* 최근 12개월 월별 배당·이자: 막대 + 3개월 평균선 + 전월 대비 */
+function chgChip(cur, prev){ if (!prev && !cur) return '<span class="chg eq">—</span>'; if (!prev) return '<span class="chg nw">신규</span>';
+  const r = (cur - prev) / prev * 100, t = Math.abs(r) >= 999 ? "999+" : Math.abs(r) >= 100 ? Math.round(Math.abs(r)) : Math.abs(r).toFixed(Math.abs(r) < 10 ? 1 : 0);
+  return Math.abs(r) < 0.5 ? '<span class="chg eq">0<em class="pc">%</em></span>' : `<span class="chg ${r > 0 ? "up" : "dn"}">${r > 0 ? "▲" : "▼"}${t}<em class="pc">%</em></span>`; }
+function niceMax(v){ if (v <= 0) return 40000; const st = v / 4, e = Math.pow(10, Math.floor(Math.log10(st))), f = st / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e * 4; } // 4칸 눈금이 1·2·5 단위로 떨어지게
+function drawDivChart(){
+  const now = new Date(), ms = []; for (let k = 12; k >= 0; k--) { const m = new Date(now.getFullYear(), now.getMonth() - k, 1); ms.push(m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0")); }
+  const D = AD(), v13 = ms.map(m => D.filter(d => d.d.startsWith(m)).reduce((a, d) => a + d.amt, 0)), mv = v13.slice(1), months = ms.slice(1);
+  const ma = mv.map((_, i) => { const a = v13.slice(Math.max(0, i - 1), i + 2); return a.reduce((x, y) => x + y, 0) / a.length; }); // 이번 달 포함 직전 3개월(창 앞 1개월 포함)
+  if (!mv.some(Boolean)) { $("divBars").innerHTML = '<p class="note" style="padding:24px 0;text-align:center">최근 12개월에 기록된 배당·이자가 없습니다. 위에서 받은 배당·이자를 기록하면 월별 그래프가 그려집니다.</p>'; return; }
+  const top = niceMax(Math.max(...mv, ...ma) * 1.05), P = v => v / top * 100, pk = mv.indexOf(Math.max(...mv));
+  const s3 = mv.slice(9).reduce((a, b) => a + b, 0), p3 = mv.slice(6, 9).reduce((a, b) => a + b, 0);
+  const card = (l, v, c, n) => `<div><span class="dl">${l}</span><div class="dval"><b>${v}</b>${c}</div><span class="dn">${n}</span></div>`;
+  const sum = `<div class="dsum">${card(`이번 달 · ${+months[11].slice(5)}월 (진행 중)`, won(mv[11]), chgChip(mv[11], mv[10]), `지난달 ${won(mv[10])} 대비`)}${card("최근 3개월 합계", won(s3), chgChip(s3, p3), `직전 3개월 ${won(p3)} 대비`)}${card("전년 같은 달 대비", won(mv[11]), chgChip(mv[11], v13[0]), `${ms[0].slice(0, 4)}년 ${+ms[0].slice(5)}월 ${won(v13[0])}`)}</div>`;
+  let grid = ""; for (let k = 0; k <= 4; k++) { const v = top * k / 4; grid += `<div class="dgrid${k ? "" : " z"}" style="bottom:${k * 25}%"><span>${k ? short(v) : "0"}</span></div>`; }
+  const cols = mv.map((v, i) => `<div class="dcol${v ? "" : " zero"}${i === 11 ? " cur" : ""}${i === pk ? " peak" : ""}" title="${months[i]} · ${won(v)}${i ? " · 전월 대비 " + (mv[i - 1] ? ((v - mv[i - 1]) / mv[i - 1] * 100).toFixed(1) + "%" : "—") : ""} · 3개월 평균 ${won(Math.round(ma[i]))}"><i style="height:${P(v)}%"></i></div>`).join("");
+  const pts = ma.map((v, i) => `${(i + .5) / 12 * 100},${100 - P(v)}`).join(" ");
+  const dots = ma.map((v, i) => `<i class="dmadot" style="left:${(i + .5) / 12 * 100}%;top:${100 - P(v)}%"></i>`).join("");
+  const xs = months.map((m, i) => `<div class="${i === 11 ? "cur" : ""}${i === pk ? " pk" : ""}" title="${m}"><span class="mo">${+m.slice(5)}<i>월</i></span><b>${v13[i + 1] ? short(mv[i]) : "—"}</b>${chgChip(mv[i], v13[i])}</div>`).join("");
+  $("divBars").innerHTML = sum + `<div class="dplot">${grid}<div class="dcols">${cols}</div><svg class="dma" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}"/></svg>${dots}</div><div class="dx">${xs}</div>
+    <div class="dleg"><span><i class="l1"></i>월 배당·이자</span><span><i class="l3"></i>이번 달(진행 중)</span><span><i class="l2"></i>3개월 평균 추세</span><span><span class="chg up">▲</span><span class="chg dn">▼</span>전월 대비 증감</span><span>막대에 마우스를 올리면 자세한 금액</span></div>`; }
 const lineSvg = $("line");
 function lineDraw(){
   const s = lineSvg, W = s.clientWidth, H = s.clientHeight, p = lineDraw.pts || []; if (!W || !H) return;
