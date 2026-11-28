@@ -1,7 +1,7 @@
 /* 오프라인에서도 앱이 열리도록 파일을 보관합니다.
    인터넷이 되면 브라우저 임시저장을 거치지 않고 항상 깃허브의 최신 파일을 받아오므로,
    파일을 고쳐 올리면 다음 실행 때 바로 반영됩니다. settings.js, config.js 는 없을 수도 있어 하나씩 따로 보관합니다. */
-const CACHE = "jasan-v19";
+const CACHE = "jasan-v20";
 const FILES = ["./", "index.html", "app.js", "defaults.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "settings.js", "config.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => c.add(new Request(f, { cache: "no-cache" })).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

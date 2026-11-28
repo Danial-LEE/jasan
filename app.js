@@ -13,7 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
-const APP_VERSION = "v19"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
+const APP_VERSION = "v20"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -886,7 +886,9 @@ function priceStatus(){
 }
 /* ---------- 보조지표: 모멘텀(3개월·12개월 상대강도)과 추천 종목·담을 계좌 ---------- */
 const REC = SET.REC || {}, MB = Object.assign({ KRW: "KRX:069500", USD: "NYSEARCA:SPY" }, SET.MOMENTUM_BENCH || {});
-const PLACE = { tax: { n: "절세계좌", s: "ISA·연금저축·IRP", a: ["ISA", "연금저축", "IRP"] }, pen: { n: "연금계좌", s: "연금저축·IRP", a: ["연금저축", "IRP"] }, isa: { n: "ISA", s: "ISA", a: ["ISA"] }, broker: { n: "위탁계좌", s: "일반(위탁)", a: ["일반(위탁)"] }, cma: { n: "CMA·위탁", s: "CMA·일반(위탁)", a: ["CMA", "일반(위탁)"] } };
+// ISA·연금저축·IRP는 모두 '절세계좌'로 같은 쪽으로 봄 (pen은 연금을 먼저 쓰라는 뜻일 뿐 ISA도 맞음)
+const TAXA = ["ISA", "연금저축", "IRP", "DC/DB"];
+const PLACE = { tax: { n: "절세계좌", s: "ISA·연금저축·IRP", a: TAXA }, pen: { n: "절세계좌", s: "연금저축·IRP 우선, ISA도 가능", a: TAXA }, isa: { n: "절세계좌", s: "ISA 우선", a: TAXA }, broker: { n: "위탁계좌", s: "일반(위탁)", a: ["일반(위탁)"] }, cma: { n: "CMA·위탁", s: "CMA·일반(위탁)", a: ["CMA", "일반(위탁)"] } };
 const recCode = c => c ? normCode(c) : "";
 function momCodes(){ const set = new Set(Object.values(MB)); S.holdings.forEach(h => { if (h.code && !/^CASH:/.test(h.code)) set.add(h.code); }); Object.values(REC).forEach(bs => bs.forEach(b => b.items.forEach(it => { if (it[0]) set.add(recCode(it[0])); }))); return [...set]; }
 let momBusy = false, momSet = "hold";
@@ -942,25 +944,37 @@ function drawMomMap(){ const el = $("momMap"); if (!el) return;
       : `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--panel)" stroke="var(--mute)" stroke-width="1.5"><title>추천 후보 · ${esc(p.n)} · 12개월 ${(p.x * 100).toFixed(1)}% · 3개월 ${(p.y * 100).toFixed(1)}%</title></circle>`;
     g += `<text class="lb${p.h ? "" : " c"}" x="${right ? x + r + 4 : x - r - 4}" y="${y + 4}" text-anchor="${right ? "start" : "end"}">${esc(lab)}</text>`; });
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="모멘텀 지도">${g}</svg>`; }
+let sigOpen = new Set(); try { sigOpen = new Set(JSON.parse(localStorage.getItem("jasan_sig") || "[]")); } catch (e) {}
+const saveSig = () => { try { localStorage.setItem("jasan_sig", JSON.stringify([...sigOpen])); } catch (e) {} };
+const whereOf = it => it[3] || (!it[0] ? "증권사 문의" : /^[0-9][0-9A-Z]{5}$/.test(it[0]) ? "어느 증권사든 (국내 ETF)" : "해외주식 거래 증권사");
 function renderSignals(){ if (!$("recWrap")) return; segSet("momSet", momSet);
-  $("momNote").textContent = S.mom ? `기준: ${new Date(S.mom.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 계산 · 국내 종목은 KODEX 200, 해외 종목은 S&P500 대비` : "아직 계산하지 않았습니다";
+  $("momNote").textContent = S.mom ? `${new Date(S.mom.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 계산 · 국내 종목은 KODEX 200, 해외 종목은 S&P500 대비` : "아직 계산하지 않았습니다";
   drawMomMap(); const c = calc(), held = A();
+  // 위쪽 카드: 보유 종목이 네 칸에 얼마나 있는지
+  const hs = securities(held.filter(h => h.code && !/^CASH:/.test(h.code))).map(g => ({ g, m: mom(g.rows[0].code) })), tv = hs.reduce((a, x) => a + (x.m && x.m.q !== "na" ? x.g.value : 0), 0) || 1;
+  const card = (q, d) => { const L = hs.filter(x => x.m && x.m.q === q), v = L.reduce((a, x) => a + x.g.value, 0);
+    return `<div class="kpi"><span>${QN[q]} <em class="qc ${q}" style="margin-left:4px">${d}</em></span><b>${L.length}<small style="font-size:14px;font-weight:600;color:var(--mute)"> 종목</small></b><span>${S.mom ? `보유 금액의 ${(v / tv * 100).toFixed(0)}%` : "모멘텀 계산 전"}${L.length ? " · " + L.slice(0, 2).map(x => esc(x.g.name)).join(", ") + (L.length > 2 ? " 외" : "") : ""}</span></div>`; };
+  $("sigKpis").innerHTML = card("lead", "12개월↑ 3개월↑") + card("weak", "12개월↑ 3개월↓") + card("imp", "12개월↓ 3개월↑") + card("lag", "12개월↓ 3개월↓");
   $("recWrap").innerHTML = ROLES.map(r => { const bs = REC[r.k] || [], mine = securities(held.filter(h => h.role === r.k && !isCash(h) && !isKcash(h))), row = c.rows.find(x => x.r.k === r.k);
     if (!bs.length && !mine.length) return "";
-    const rec = new Set(); let head = `<div class="rrh"><h3><i style="background:${r.c}"></i>${esc(r.n)}</h3><span class="note">현재 ${(row.w * 100).toFixed(1)}% · 목표 ${(row.t * 100).toFixed(1)}%${Math.abs(row.trade) >= 1e4 ? ` · 리밸런싱 ${row.trade > 0 ? "매수" : "매도"} ${short(Math.abs(row.trade))}` : " · 조정 없음"}</span></div>`;
-    const bHTML = bs.map(b => { const pl = PLACE[b.p] || PLACE.tax, my = myAccts(b.p);
-      const items = b.items.map(it => { const code = recCode(it[0]); if (code) rec.add(code); const m = code ? mom(code) : null, hs = code ? held.filter(h => h.code && codeBase(h.code) === codeBase(code)) : [];
-          return { it, code, m, hs }; }).sort((a, b2) => (b2.m && b2.m.sc != null ? b2.m.sc : -9) - (a.m && a.m.sc != null ? a.m.sc : -9));
-      const topI = items.findIndex(x => x.m && x.m.sc != null);
-      return `<div class="rb"><div class="rbh"><b>${esc(b.b)}</b><span class="pl ${b.p}">담을 계좌 · ${pl.n}</span><span class="note">${pl.s}</span></div><div class="rwhy">${esc(b.why || "")}</div>
-        <div class="racct${my.length ? "" : " none"}">${my.length ? "내 계좌: " + my.map(esc).join(" · ") : "내 계좌 중 해당 계좌가 없습니다 · 새로 만들거나 비슷한 계좌를 쓰세요"}</div>
-        <table class="rt"><thead><tr><th>순위</th><th>종목</th><th class="n">3개월</th><th class="n">12개월</th><th>모멘텀</th><th>보유</th></tr></thead><tbody>${items.map((x, i) => { const top = i === topI && items.length > 1;
-          const hold = x.hs.length ? x.hs.map(h => { const ok = pl.a.includes(h.acct); return `<div class="hold${ok ? "" : " bad"}" title="${ok ? "권장 계좌에 담겨 있음" : "권장 계좌는 " + pl.n + "입니다"}">${ok ? "✓" : "△"} ${esc(h.acct)} ${short(h.value)}</div>`; }).join("") : '<span class="note">—</span>';
-          return `<tr class="${top ? "rtop" : ""}"><td class="rk">${x.m && x.m.sc != null ? i + 1 : "·"}</td><td><div class="nm">${x.code ? logo(x.code, x.it[1], r.k) : ""}<div>${esc(x.it[1])}${top ? '<span class="best">모멘텀 1위</span>' : ""}<small>${x.code ? esc(codeBase(x.code)) : ""}${x.it[2] ? (x.code ? " · " : "") + esc(x.it[2]) : ""}</small></div></div></td><td class="n">${x.m ? pp(x.m.rs3) : "—"}</td><td class="n">${x.m ? pp(x.m.rs12) : "—"}</td><td>${x.code ? qchip(x.m) : '<span class="qc na">장외·현물</span>'}</td><td class="hl">${hold}</td></tr>`; }).join("")}</tbody></table></div>`; }).join("");
-    const others = mine.filter(g => !g.rows.some(h => h.code && rec.has(h.code)));
-    const oHTML = others.length ? `<div class="rb"><div class="rbh"><b>내가 보유한 다른 종목</b><span class="note">추천 목록에 없는 보유 종목의 모멘텀</span></div><table class="rt"><thead><tr><th></th><th>종목</th><th class="n">3개월</th><th class="n">12개월</th><th>모멘텀</th><th>보유</th></tr></thead><tbody>${others.map(g => { const code = g.rows[0].code, m = code ? mom(code) : null;
-        return `<tr><td class="rk">·</td><td><div class="nm">${logo(code, g.name, r.k)}<div>${esc(g.name || code)}<small>${code ? esc(codeBase(code)) : "종목코드 없음"}</small></div></div></td><td class="n">${m ? pp(m.rs3) : "—"}</td><td class="n">${m ? pp(m.rs12) : "—"}</td><td>${code ? qchip(m) : '<span class="qc na">코드 없음</span>'}</td><td class="hl">${g.rows.map(h => `<div class="hold">${esc(h.acct)} ${short(h.value)}</div>`).join("")}</td></tr>`; }).join("")}</tbody></table></div>` : "";
-    return `<div class="rrole">${head}${bHTML}${oHTML}</div>`; }).join(""); }
+    const rec = new Set(), open = sigOpen.has(r.k); let best = null;
+    const body = bs.map(b => { const pl = PLACE[b.p] || PLACE.tax, my = myAccts(b.p);
+      const items = b.items.map(it => { const code = recCode(it[0]); if (code) rec.add(code); const m = code ? mom(code) : null, hh = code ? held.filter(h => h.code && codeBase(h.code) === codeBase(code)) : held.filter(h => !h.code && nameKey(h.name) === nameKey(it[1]));
+          return { it, code, m, hh }; }).sort((x, y) => (y.m && y.m.sc != null ? y.m.sc : -9) - (x.m && x.m.sc != null ? x.m.sc : -9));
+      const ti = items.findIndex(x => x.m && x.m.sc != null); if (ti >= 0 && (!best || items[ti].m.sc > best.m.sc)) best = items[ti];
+      return `<tr class="bk"><td colspan="7"><div class="bkh"><b>${esc(b.b)}</b>${(b.tags || []).map(t => `<span class="tg2">${esc(t)}</span>`).join("")}<span class="pl ${b.p === "broker" || b.p === "cma" ? b.p : "tax"}">${pl.n}</span><span class="bkw">${esc(b.why || "")}</span></div><div class="bka">${my.length ? "내 " + pl.n + ": " + my.map(esc).join(" · ") : `내 계좌 중 ${pl.n}가 없습니다`}</div></td></tr>`
+        + items.map((x, i) => { const top = i === ti && items.filter(y => y.m && y.m.sc != null).length > 1;
+          const hold = x.hh.length ? x.hh.map(h => { const ok = pl.a.includes(h.acct); return `<div class="hold${ok ? "" : " bad"}" title="${ok ? "권장 계좌 종류에 담겨 있음" : `${pl.n}에 두면 세금 면에서 더 유리 (지금: ${h.acct})`}">${ok ? "✓" : "↔"} ${esc(h.acct)} ${short(h.value)}</div>`; }).join("") : '<span class="dim">—</span>';
+          return `<tr class="${top ? "rtop" : ""}"><td class="rk">${x.m && x.m.sc != null ? i + 1 : ""}</td><td><div class="nm">${x.code ? logo(x.code, x.it[1], r.k) : '<span class="lg0">채</span>'}<div>${esc(x.it[1])}${top ? '<span class="best">모멘텀 1위</span>' : ""}<small>${[x.code ? codeBase(x.code) : "", x.it[2] || ""].filter(Boolean).map(esc).join(" · ")}</small></div></div></td><td class="wh">${esc(whereOf(x.it))}</td><td class="n">${x.m ? pp(x.m.rs3) : "—"}</td><td class="n">${x.m ? pp(x.m.rs12) : "—"}</td><td>${x.code ? qchip(x.m) : '<span class="qc na">시세 없음</span>'}</td><td class="hl">${hold}</td></tr>`; }).join(""); }).join("");
+    const others = mine.filter(g => !g.rows.some(h => h.code && rec.has(h.code)) && !bs.some(b => b.items.some(it => !it[0] && nameKey(it[1]) === nameKey(g.name))));
+    const oBody = others.length ? `<tr class="bk"><td colspan="7"><div class="bkh"><b>내가 보유한 다른 종목</b><span class="bkw">추천 목록에 없는 보유 종목의 모멘텀</span></div></td></tr>` + others.map(g => { const code = g.rows[0].code, m = code ? mom(code) : null;
+        return `<tr><td class="rk"></td><td><div class="nm">${logo(code, g.name, r.k)}<div>${esc(g.name || code)}<small>${code ? esc(codeBase(code)) : "종목코드 없음"}</small></div></div></td><td class="wh">—</td><td class="n">${m ? pp(m.rs3) : "—"}</td><td class="n">${m ? pp(m.rs12) : "—"}</td><td>${code ? qchip(m) : '<span class="qc na">코드 없음</span>'}</td><td class="hl">${g.rows.map(h => `<div class="hold">${esc(h.acct)} ${short(h.value)}</div>`).join("")}</td></tr>`; }).join("") : "";
+    const tr = Math.abs(row.trade) >= 1e4 ? `<span class="tp ${row.trade > 0 ? "buy" : "sell"}" style="min-width:0">${row.trade > 0 ? "매수" : "매도"} ${short(Math.abs(row.trade))}</span>` : '<span class="tp" style="min-width:0">조정 없음</span>';
+    return `<div class="sgrp${open ? " open" : ""}" data-r="${r.k}"><button class="sgh" aria-expanded="${open}"><span class="tw">${open ? "▾" : "▸"}</span><i style="background:${r.c}"></i><b>${esc(r.n)}</b><span class="sgm">현재 ${(row.w * 100).toFixed(1)}% · 목표 ${(row.t * 100).toFixed(1)}%</span>${tr}<span class="sgb2">${best ? `모멘텀 1위 <b>${esc(best.it[1])}</b> ${qchip(best.m)}` : `<span class="dim">${bs.reduce((a, b) => a + b.items.length, 0)}개 후보</span>`}</span></button>
+      <div class="sgbody"${open ? "" : " hidden"}><table class="rt"><thead><tr><th>순위</th><th>종목</th><th>사는 곳</th><th class="n">3개월</th><th class="n">12개월</th><th>모멘텀</th><th>보유</th></tr></thead><tbody>${body}${oBody}</tbody></table></div></div>`; }).join("");
+  const n = $("recWrap").querySelectorAll(".sgrp").length, no = $("recWrap").querySelectorAll(".sgrp.open").length; $("sigFold").textContent = no ? "모두 접기" : "모두 펼치기"; $("sigFold").hidden = !n; }
+$("recWrap").addEventListener("click", e => { const b = e.target.closest(".sgh"); if (!b) return; const k = b.closest(".sgrp").dataset.r; sigOpen.has(k) ? sigOpen.delete(k) : sigOpen.add(k); saveSig(); renderSignals(); });
+$("sigFold").onclick = () => { const ks = [...$("recWrap").querySelectorAll(".sgrp")].map(x => x.dataset.r), any = ks.some(k => sigOpen.has(k)); ks.forEach(k => any ? sigOpen.delete(k) : sigOpen.add(k)); saveSig(); renderSignals(); };
 $("momSet").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; momSet = b.dataset.v; renderSignals(); });
 $("momBtn").onclick = () => refreshMomentum(true);
 if (window.ResizeObserver) new ResizeObserver(() => { if ($("v-signals").classList.contains("on")) drawMomMap(); }).observe($("momMap"));
