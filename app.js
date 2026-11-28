@@ -13,7 +13,7 @@ const CONFIG = window.JASAN_CONFIG || {};
 const ROLES = SET.ROLES, RK = ROLES.map(r => r.k), RM = Object.fromEntries(ROLES.map(r => [r.k, r]));
 const ACCTS = SET.ACCOUNTS, TAXADV = ["ISA", "연금저축", "IRP", "DC/DB"];
 const DEF = SET.PRESETS[SET.DEFAULT_PRESET] ? SET.DEFAULT_PRESET : Object.keys(SET.PRESETS)[0];
-const APP_VERSION = "v18"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
+const APP_VERSION = "v19"; // 화면 위에 표시되는 앱 버전. 업데이트가 반영됐는지 확인용
 const LS = "jasan-v1", FILE = "자산관리_데이터.json";
 const DRIVE = "https://www.googleapis.com/drive/v3", UPLOAD = "https://www.googleapis.com/upload/drive/v3", SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const REFRESH_MIN = Math.max(3, +SET.PRICE_REFRESH_MINUTES || 10);
@@ -97,7 +97,7 @@ function norm(s){
   s.holdings = (Array.isArray(s.holdings) ? s.holdings : []).map(h => ({ id: h.id || uid(), inst: String(h.inst || ""), acct: ACCTS.includes(h.acct) ? h.acct : "기타", name: String(h.name || ""), role: RK.includes(h.role) ? h.role : RK[0], cost: +h.cost || 0, value: +h.value || 0,
     code: normCode(h.code), qty: +h.qty || 0, price: +h.price || 0, cur: String(h.cur || ""), perr: !!h.perr, fxerr: !!h.fxerr, autoName: !!h.autoName })).map(h => /^CASH:/.test(h.code) ? Object.assign(h, { price: 1, cur: h.code.slice(5), perr: false }) : h);
   s.divs = (Array.isArray(s.divs) ? s.divs : []).filter(d => d && d.d && +d.amt).map(d => ({ id: d.id || uid(), d: String(d.d), hid: String(d.hid || ""), name: String(d.name || ""), inst: String(d.inst || ""), acct: String(d.acct || ""), amt: +d.amt, cur: d.cur === "USD" ? "USD" : "KRW", amtCur: +d.amtCur || +d.amt, fx: +d.fx || 1, how: d.how === "wd" ? "wd" : "dep", cashId: String(d.cashId || "") }));
-  s.tx = (Array.isArray(s.tx) ? s.tx : []).filter(t => t && t.t && t.key); s.off = Array.isArray(s.off) ? s.off.map(String) : []; s.fx = s.fx && typeof s.fx === "object" ? s.fx : {}; s.fxManual = s.fxManual && typeof s.fxManual === "object" ? s.fxManual : {}; s.priceSheet = String(s.priceSheet || ""); s.pricedAt = +s.pricedAt || 0;
+  s.mom = s.mom && typeof s.mom === "object" && s.mom.d ? s.mom : null; s.tx = (Array.isArray(s.tx) ? s.tx : []).filter(t => t && t.t && t.key); s.off = Array.isArray(s.off) ? s.off.map(String) : []; s.fx = s.fx && typeof s.fx === "object" ? s.fx : {}; s.fxManual = s.fxManual && typeof s.fxManual === "object" ? s.fxManual : {}; s.priceSheet = String(s.priceSheet || ""); s.pricedAt = +s.pricedAt || 0;
   s.snaps = (Array.isArray(s.snaps) ? s.snaps : []).filter(x => x && x.d).map(x => { const o = { d: String(x.d), c: +x.c || 0, v: +x.v || 0 }; if (x.r && typeof x.r === "object") o.r = x.r; if (x.a && typeof x.a === "object") o.a = x.a; if (x.pp) o.pp = 1; return o; });
   s.savedAt = +s.savedAt || 0; return s;
 }
@@ -884,6 +884,86 @@ function priceStatus(){
   $("sheetLink").hidden = !S.priceSheet; if (S.priceSheet) $("sheetLink").href = "https://docs.google.com/spreadsheets/d/" + S.priceSheet;
   setPriceTxt(at ? `시세 ${at} 기준 · 종목코드 ${n}개${bad ? ` 중 ${bad}개 시세 없음` : ""} · 최대 20분 지연 · 로그인 중 ${REFRESH_MIN}분마다 자동 갱신` : `종목코드가 있는 자산 ${n}개 · 구글 로그인하면 시세를 받아 옵니다`);
 }
+/* ---------- 보조지표: 모멘텀(3개월·12개월 상대강도)과 추천 종목·담을 계좌 ---------- */
+const REC = SET.REC || {}, MB = Object.assign({ KRW: "KRX:069500", USD: "NYSEARCA:SPY" }, SET.MOMENTUM_BENCH || {});
+const PLACE = { tax: { n: "절세계좌", s: "ISA·연금저축·IRP", a: ["ISA", "연금저축", "IRP"] }, pen: { n: "연금계좌", s: "연금저축·IRP", a: ["연금저축", "IRP"] }, isa: { n: "ISA", s: "ISA", a: ["ISA"] }, broker: { n: "위탁계좌", s: "일반(위탁)", a: ["일반(위탁)"] }, cma: { n: "CMA·위탁", s: "CMA·일반(위탁)", a: ["CMA", "일반(위탁)"] } };
+const recCode = c => c ? normCode(c) : "";
+function momCodes(){ const set = new Set(Object.values(MB)); S.holdings.forEach(h => { if (h.code && !/^CASH:/.test(h.code)) set.add(h.code); }); Object.values(REC).forEach(bs => bs.forEach(b => b.items.forEach(it => { if (it[0]) set.add(recCode(it[0])); }))); return [...set]; }
+let momBusy = false, momSet = "hold";
+async function refreshMomentum(manual){
+  if (momBusy) return; if (!token) { if (manual) login(); else renderSignals(); return; }
+  momBusy = true; $("momBtn").disabled = true; $("momNote").textContent = "모멘텀을 계산하는 중… (과거 시세를 받아 오느라 10~20초 걸립니다)";
+  try {
+    const id = await ensureSheet(), codes = momCodes(), n = codes.length;
+    try { await gfetch(`${SHEETS}/${id}:batchUpdate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "M" } } }] }) }); } catch (e) { /* 이미 있음 */ }
+    const ago = d => `IFERROR(INDEX(GOOGLEFINANCE(A{r},"close",TODAY()-${d},10),2,2),"")`;
+    const vals = codes.map((c, i) => { const r = i + 1; return [c, `=IFERROR(GOOGLEFINANCE(A${r},"price"),"")`, "=" + ago(91).replace("{r}", r), "=" + ago(365).replace("{r}", r), `=IFERROR(GOOGLEFINANCE(A${r},"name"),"")`]; });
+    await gfetch(`${SHEETS}/${id}/values/M!A1:E1000:clear`, { method: "POST" });
+    await gfetch(`${SHEETS}/${id}/values/M!A1:E${n}?valueInputOption=USER_ENTERED`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ values: vals }) });
+    let got = [], last = "", same = 0;
+    for (let k = 0; k < 16; k++) { await new Promise(r => setTimeout(r, k ? 1500 : 1500));
+      got = ((await (await gfetch(`${SHEETS}/${id}/values/M!A1:E${n}?valueRenderOption=UNFORMATTED_VALUE`)).json()).values) || [];
+      const sig = JSON.stringify(got), filled = got.filter(r => typeof r[1] === "number").length;
+      same = sig === last ? same + 1 : 0; last = sig; $("momNote").textContent = `모멘텀을 계산하는 중… ${filled}/${n}`;
+      if (got.length >= n && k >= 3 && same >= 2) break; }
+    const d = {}; got.forEach(r => { const num = v => typeof v === "number" && v > 0 ? v : 0; d[r[0]] = { p: num(r[1]), p3: num(r[2]), p12: num(r[3]), name: String(r[4] || "").trim() }; });
+    S.mom = { at: Date.now(), d }; persist(); if (manual) toast(`모멘텀을 계산했습니다 (${Object.values(d).filter(x => x.p && x.p3).length}/${n}개 종목)`);
+  } catch (e) { $("momNote").textContent = "모멘텀을 받지 못했습니다: " + (e.message || e.status || e); if (manual) toast("모멘텀 계산에 실패했습니다"); }
+  finally { momBusy = false; $("momBtn").disabled = false; renderSignals(); }
+}
+function mom(code){ const d = S.mom && S.mom.d, x = d && d[code]; if (!x || !x.p) return null;
+  const b = d[/^(KRX|KOSDAQ):/.test(code) ? MB.KRW : MB.USD] || {}, r3 = x.p3 ? x.p / x.p3 - 1 : null, r12 = x.p12 ? x.p / x.p12 - 1 : null;
+  const rel = (r, bp, bpast) => r == null ? null : bp && bpast ? (1 + r) / (bp / bpast) - 1 : r;
+  const rs3 = rel(r3, b.p, b.p3), rs12 = rel(r12, b.p, b.p12), q = rs3 == null || rs12 == null ? (rs3 == null ? "na" : rs3 >= 0 ? "imp" : "lag") : rs12 >= 0 ? (rs3 >= 0 ? "lead" : "weak") : (rs3 >= 0 ? "imp" : "lag");
+  const sc = rs3 == null ? null : rs12 == null ? rs3 : (rs3 + rs12) / 2; return { r3, r12, rs3, rs12, q, sc, name: x.name }; }
+const QN = { lead: "주도", weak: "약화", lag: "소외", imp: "개선", na: "시세 없음" };
+const qchip = m => m ? `<span class="qc ${m.q}" title="${{ lead: "12개월·3개월 모두 기준보다 강함", weak: "12개월은 강하지만 최근 3개월 약해짐", lag: "12개월·3개월 모두 약함", imp: "12개월은 약했지만 최근 3개월 강해짐", na: "" }[m.q]}">${QN[m.q]}</span>` : '<span class="qc na">—</span>';
+const pp = v => v == null ? "—" : `<span class="${cls(v)}">${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}%</span>`;
+function myAccts(pk){ const pl = PLACE[pk] || PLACE.tax; return [...new Set(S.holdings.filter(h => pl.a.includes(h.acct)).map(h => (h.inst || "기관 미입력") + " " + h.acct))]; }
+function drawMomMap(){ const el = $("momMap"); if (!el) return;
+  if (!S.mom) { el.innerHTML = `<div class="mempty">${token ? "‘모멘텀 갱신’을 누르면 보유 종목과 추천 후보의 3개월·12개월 상대강도를 계산합니다." : "구글 로그인 후 ‘모멘텀 갱신’을 누르면 구글 시트에서 과거 시세를 받아 모멘텀을 계산합니다."}</div>`; return; }
+  const secs = securities(A().filter(h => h.code && !/^CASH:/.test(h.code))), held = new Set();
+  const pts = secs.map(g => { const c = g.rows[0].code; held.add(c); const m = mom(c); return m && m.rs3 != null && m.rs12 != null ? { x: m.rs12, y: m.rs3, n: g.name || c, v: g.value, col: (ROLES.find(r => r.k === g.rows[0].role) || {}).c || "#888", h: 1 } : null; }).filter(Boolean);
+  if (momSet === "all") Object.values(REC).forEach(bs => bs.forEach(b => b.items.forEach(it => { const c = recCode(it[0]); if (!c || held.has(c)) return; held.add(c); const m = mom(c); if (m && m.rs3 != null && m.rs12 != null) pts.push({ x: m.rs12, y: m.rs3, n: it[1], v: 0, h: 0 }); })));
+  if (!pts.length) { el.innerHTML = '<div class="mempty">계산된 종목이 없습니다. 종목코드가 있는 보유 자산이 필요하고, 일부 종목은 구글 금융에서 과거 시세를 주지 않습니다.</div>'; return; }
+  const W = Math.max(300, el.clientWidth || 800), H = Math.round(Math.max(300, Math.min(520, W * .56))), pl = W < 500 ? 34 : 46, pr = 14, pt = 18, pb = 30;
+  const ex = Math.min(1.2, Math.max(.1, ...pts.map(p => Math.abs(p.x))) * 1.15), ey = Math.min(1, Math.max(.06, ...pts.map(p => Math.abs(p.y))) * 1.15);
+  const X = v => pl + (Math.max(-ex, Math.min(ex, v)) + ex) / (2 * ex) * (W - pl - pr), Y = v => pt + (ey - Math.max(-ey, Math.min(ey, v))) / (2 * ey) * (H - pt - pb);
+  const vmax = Math.max(1, ...pts.map(p => p.v)), R = p => p.h ? 5 + Math.sqrt(p.v / vmax) * (W < 500 ? 11 : 16) : 4.5;
+  const tick = (e, f) => [-e, -e / 2, 0, e / 2, e].map(f).join("");
+  let g = `<rect x="${X(0)}" y="${pt}" width="${W - pr - X(0)}" height="${Y(0) - pt}" fill="var(--up)" opacity=".035"/><rect x="${pl}" y="${Y(0)}" width="${X(0) - pl}" height="${H - pb - Y(0)}" fill="var(--down)" opacity=".035"/>`;
+  g += `<line class="ax" x1="${pl}" x2="${W - pr}" y1="${Y(0)}" y2="${Y(0)}"/><line class="ax" x1="${X(0)}" x2="${X(0)}" y1="${pt}" y2="${H - pb}"/>`;
+  g += tick(ex, v => `<text class="tk" x="${X(v)}" y="${H - 10}" text-anchor="middle">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v * 100).toFixed(0)}%</text>`);
+  g += tick(ey, v => v ? `<text class="tk" x="${pl - 6}" y="${Y(v) + 4}" text-anchor="end">${v > 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(0)}%</text>` : "");
+  const q = (x, y, a, t, s2) => `<text class="qd" x="${x}" y="${y}" text-anchor="${a}">${t}</text><text class="qs" x="${x}" y="${y + 15}" text-anchor="${a}">${s2}</text>`;
+  g += q(W - pr - 6, pt + 18, "end", "주도", "12개월·3개월 강함") + q(W - pr - 6, H - pb - 22, "end", "약화", "강했다가 식는 중") + q(pl + 6, H - pb - 22, "start", "소외", "모두 약함") + q(pl + 6, pt + 18, "start", "개선", "최근 힘이 붙음");
+  pts.sort((a, b) => (a.h - b.h) || (b.v - a.v)).forEach(p => { const x = X(p.x), y = Y(p.y), r = R(p), lab = p.n.length > 12 ? p.n.slice(0, 11) + "…" : p.n, right = x < W - 120;
+    g += p.h ? `<circle cx="${x}" cy="${y}" r="${r}" fill="${p.col}" fill-opacity=".85" stroke="#fff" stroke-width="1.5"><title>${esc(p.n)} · 12개월 ${(p.x * 100).toFixed(1)}% · 3개월 ${(p.y * 100).toFixed(1)}%</title></circle>`
+      : `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--panel)" stroke="var(--mute)" stroke-width="1.5"><title>추천 후보 · ${esc(p.n)} · 12개월 ${(p.x * 100).toFixed(1)}% · 3개월 ${(p.y * 100).toFixed(1)}%</title></circle>`;
+    g += `<text class="lb${p.h ? "" : " c"}" x="${right ? x + r + 4 : x - r - 4}" y="${y + 4}" text-anchor="${right ? "start" : "end"}">${esc(lab)}</text>`; });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="모멘텀 지도">${g}</svg>`; }
+function renderSignals(){ if (!$("recWrap")) return; segSet("momSet", momSet);
+  $("momNote").textContent = S.mom ? `기준: ${new Date(S.mom.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 계산 · 국내 종목은 KODEX 200, 해외 종목은 S&P500 대비` : "아직 계산하지 않았습니다";
+  drawMomMap(); const c = calc(), held = A();
+  $("recWrap").innerHTML = ROLES.map(r => { const bs = REC[r.k] || [], mine = securities(held.filter(h => h.role === r.k && !isCash(h) && !isKcash(h))), row = c.rows.find(x => x.r.k === r.k);
+    if (!bs.length && !mine.length) return "";
+    const rec = new Set(); let head = `<div class="rrh"><h3><i style="background:${r.c}"></i>${esc(r.n)}</h3><span class="note">현재 ${(row.w * 100).toFixed(1)}% · 목표 ${(row.t * 100).toFixed(1)}%${Math.abs(row.trade) >= 1e4 ? ` · 리밸런싱 ${row.trade > 0 ? "매수" : "매도"} ${short(Math.abs(row.trade))}` : " · 조정 없음"}</span></div>`;
+    const bHTML = bs.map(b => { const pl = PLACE[b.p] || PLACE.tax, my = myAccts(b.p);
+      const items = b.items.map(it => { const code = recCode(it[0]); if (code) rec.add(code); const m = code ? mom(code) : null, hs = code ? held.filter(h => h.code && codeBase(h.code) === codeBase(code)) : [];
+          return { it, code, m, hs }; }).sort((a, b2) => (b2.m && b2.m.sc != null ? b2.m.sc : -9) - (a.m && a.m.sc != null ? a.m.sc : -9));
+      const topI = items.findIndex(x => x.m && x.m.sc != null);
+      return `<div class="rb"><div class="rbh"><b>${esc(b.b)}</b><span class="pl ${b.p}">담을 계좌 · ${pl.n}</span><span class="note">${pl.s}</span></div><div class="rwhy">${esc(b.why || "")}</div>
+        <div class="racct${my.length ? "" : " none"}">${my.length ? "내 계좌: " + my.map(esc).join(" · ") : "내 계좌 중 해당 계좌가 없습니다 · 새로 만들거나 비슷한 계좌를 쓰세요"}</div>
+        <table class="rt"><thead><tr><th>순위</th><th>종목</th><th class="n">3개월</th><th class="n">12개월</th><th>모멘텀</th><th>보유</th></tr></thead><tbody>${items.map((x, i) => { const top = i === topI && items.length > 1;
+          const hold = x.hs.length ? x.hs.map(h => { const ok = pl.a.includes(h.acct); return `<div class="hold${ok ? "" : " bad"}" title="${ok ? "권장 계좌에 담겨 있음" : "권장 계좌는 " + pl.n + "입니다"}">${ok ? "✓" : "△"} ${esc(h.acct)} ${short(h.value)}</div>`; }).join("") : '<span class="note">—</span>';
+          return `<tr class="${top ? "rtop" : ""}"><td class="rk">${x.m && x.m.sc != null ? i + 1 : "·"}</td><td><div class="nm">${x.code ? logo(x.code, x.it[1], r.k) : ""}<div>${esc(x.it[1])}${top ? '<span class="best">모멘텀 1위</span>' : ""}<small>${x.code ? esc(codeBase(x.code)) : ""}${x.it[2] ? (x.code ? " · " : "") + esc(x.it[2]) : ""}</small></div></div></td><td class="n">${x.m ? pp(x.m.rs3) : "—"}</td><td class="n">${x.m ? pp(x.m.rs12) : "—"}</td><td>${x.code ? qchip(x.m) : '<span class="qc na">장외·현물</span>'}</td><td class="hl">${hold}</td></tr>`; }).join("")}</tbody></table></div>`; }).join("");
+    const others = mine.filter(g => !g.rows.some(h => h.code && rec.has(h.code)));
+    const oHTML = others.length ? `<div class="rb"><div class="rbh"><b>내가 보유한 다른 종목</b><span class="note">추천 목록에 없는 보유 종목의 모멘텀</span></div><table class="rt"><thead><tr><th></th><th>종목</th><th class="n">3개월</th><th class="n">12개월</th><th>모멘텀</th><th>보유</th></tr></thead><tbody>${others.map(g => { const code = g.rows[0].code, m = code ? mom(code) : null;
+        return `<tr><td class="rk">·</td><td><div class="nm">${logo(code, g.name, r.k)}<div>${esc(g.name || code)}<small>${code ? esc(codeBase(code)) : "종목코드 없음"}</small></div></div></td><td class="n">${m ? pp(m.rs3) : "—"}</td><td class="n">${m ? pp(m.rs12) : "—"}</td><td>${code ? qchip(m) : '<span class="qc na">코드 없음</span>'}</td><td class="hl">${g.rows.map(h => `<div class="hold">${esc(h.acct)} ${short(h.value)}</div>`).join("")}</td></tr>`; }).join("")}</tbody></table></div>` : "";
+    return `<div class="rrole">${head}${bHTML}${oHTML}</div>`; }).join(""); }
+$("momSet").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; momSet = b.dataset.v; renderSignals(); });
+$("momBtn").onclick = () => refreshMomentum(true);
+if (window.ResizeObserver) new ResizeObserver(() => { if ($("v-signals").classList.contains("on")) drawMomMap(); }).observe($("momMap"));
 async function ensureSheet(){
   if (S.priceSheet) { try { await gfetch(`${SHEETS}/${S.priceSheet}?fields=spreadsheetId`); return S.priceSheet; } catch (e) { if (!e.notFound) throw e; } }
   const j = await (await gfetch(SHEETS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ properties: { title: "자산관리_시세", locale: "en_US" }, sheets: [{ properties: { title: "P" } }] }) })).json();
@@ -947,8 +1027,8 @@ $("fxSet").onclick = () => { const v = +$("fxIn").value; if (!(v > 100)) { toast
 $("debugBtn").onclick = () => { const d = $("priceDebug"); d.hidden = !d.hidden; d.textContent = (S.priceDebug && S.priceDebug.length) ? "구글 시트가 돌려준 값 (종목코드 → 현재가 통화)\n" + S.priceDebug.join("\n") : "아직 받아 온 기록이 없습니다. ‘시세 갱신’을 먼저 누르세요."; };
 
 /* ---------- 탭 ---------- */
-const VIEWS = ["rebalance", "holdings", "returns", "charts", "targets"];
-function route(){ const h = location.hash.slice(1), v = VIEWS.includes(h) ? h : "rebalance"; VIEWS.forEach(x => $("v-" + x).classList.toggle("on", x === v)); document.querySelectorAll("#nav a, #tabs a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + v)); window.scrollTo({ top: 0 }); if (v === "returns") requestAnimationFrame(lineDraw); if (v === "charts") requestAnimationFrame(() => renderCharts(calc())); }
+const VIEWS = ["rebalance", "holdings", "returns", "charts", "signals", "targets"];
+function route(){ const h = location.hash.slice(1), v = VIEWS.includes(h) ? h : "rebalance"; VIEWS.forEach(x => $("v-" + x).classList.toggle("on", x === v)); document.querySelectorAll("#nav a, #tabs a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + v)); window.scrollTo({ top: 0 }); if (v === "returns") requestAnimationFrame(lineDraw); if (v === "charts") requestAnimationFrame(() => renderCharts(calc())); if (v === "signals") { requestAnimationFrame(renderSignals); if (token && (!S.mom || Date.now() - S.mom.at > 12 * 3600e3)) refreshMomentum(false); } }
 addEventListener("hashchange", route);
 
 $("appVer").textContent = "앱 " + APP_VERSION;
